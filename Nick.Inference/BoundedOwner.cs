@@ -1,4 +1,7 @@
-﻿namespace Nick.Inference
+﻿using System;
+using System.Collections.Generic;
+
+namespace Nick.Inference
 {
     public class BoundedOwner<T> : IDisposable
     {

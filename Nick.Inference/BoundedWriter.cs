@@ -1,4 +1,9 @@
-﻿namespace Nick.Inference
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading.Channels;
+
+namespace Nick.Inference
 {
     public class BoundedWriter<T>
     {
@@ -38,7 +43,9 @@
                 else
                 {
                     node = _freeList.First;
-                    _freeList.Remove(node);
+                    if (node != null) {
+                        _freeList.Remove(node);
+                    }
                 }
             }
 

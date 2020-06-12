@@ -1,4 +1,7 @@
-﻿namespace Nick.Inference
+﻿using System;
+using System.Runtime.InteropServices;
+
+namespace Nick.Inference
 {
     public class NativeMemory : IDisposable
     {
