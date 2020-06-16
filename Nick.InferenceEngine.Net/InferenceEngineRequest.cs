@@ -1,30 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Xml.Linq;
 
 namespace Nick.InferenceEngine.Net
 {
     using static InferenceEngineLibrary;
+    using ie_blob_t = IntPtr;
+    using ie_infer_request_t = IntPtr;
+
     public class InferenceEngineRequest : IDisposable
     {
-        private readonly InferenceEngineNetwork _network;
+        private readonly InferenceEngineExecutableNetwork _executableNetwork;
+        private ie_infer_request_t _inferRequest;
 
-        private IntPtr _inferRequest;
-
-        public IReadOnlyDictionary<string, Blob> BlobMappings { get; }
-
-        public InferenceEngineRequest(InferenceEngineNetwork network, IReadOnlyDictionary<string, Blob> blobMappings)
+        public InferenceEngineRequest(InferenceEngineExecutableNetwork executableNetwork)
         {
-            _network = network;
-            var exeNetwork = network.ExeNetwork ?? throw new InvalidOperationException("Network needs loading");
-            ie_exec_network_create_infer_request(exeNetwork, out var inferRequest).Check(nameof(ie_exec_network_create_infer_request));
+            _executableNetwork = executableNetwork;
+            ie_exec_network_create_infer_request(executableNetwork.ExecutableNetwork, out _inferRequest).Check(nameof(ie_exec_network_create_infer_request));
+        }
 
-            foreach (var (blobName, blob) in blobMappings)
-            {
-                ie_infer_request_set_blob(inferRequest, blobName, blob).Check(nameof(ie_infer_request_set_blob));
-            }
+        public void SetBlob(string name, SimpleBlob blob)
+        {
+            ie_infer_request_set_blob(_inferRequest, name, blob.Blob).Check(nameof(ie_infer_request_set_blob));
+        }
 
-            _inferRequest = inferRequest;
-            BlobMappings = blobMappings;
+        public SimpleBlob GetBlob(string name)
+        {
+            ie_infer_request_get_blob(_inferRequest, name, out var blob).Check(nameof(ie_infer_request_get_blob));
+            return new SimpleBlob(blob);
         }
 
         public void Infer()
@@ -45,10 +48,6 @@ namespace Nick.InferenceEngine.Net
                 }
 
                 ie_infer_request_free(ref _inferRequest);
-                foreach (var blob in BlobMappings.Values)
-                {
-                    blob.Dispose();
-                }
 
                 disposedValue = true;
             }

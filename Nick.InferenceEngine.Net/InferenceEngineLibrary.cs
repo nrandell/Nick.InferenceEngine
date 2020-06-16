@@ -1,6 +1,8 @@
-﻿using System;
+﻿#define Production
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Nick.InferenceEngine.Net
 {
@@ -88,9 +90,9 @@ namespace Nick.InferenceEngine.Net
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
-    public struct ie_available_devices_t
+    public unsafe struct ie_available_devices_t
     {
-        public IntPtr devices;
+        public IntPtr* devices;
         public size_t num_devices;
     };
 
@@ -113,7 +115,7 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
-        public dimensions_t(params size_t[] dims)
+        public dimensions_t(params int[] dims)
         {
             if (dims.Length > MaxDims)
             {
@@ -124,6 +126,22 @@ namespace Nick.InferenceEngine.Net
             {
                 this.dims[i] = dims[i];
             }
+        }
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            sb.Append('[');
+            for (var i = 0; i < ranks; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append(',');
+                }
+                sb.Append(dims[i]);
+            }
+            sb.Append(']');
+            return sb.ToString();
         }
     }
 
@@ -264,7 +282,7 @@ namespace Nick.InferenceEngine.Net
         }
     }
 
-    public static class InferenceEngineLibrary
+    public static partial class InferenceEngineLibrary
     {
         private static void AddDllDirectory(string pathName)
         {
@@ -277,7 +295,7 @@ namespace Nick.InferenceEngine.Net
         {
 #if Production
             const string baseDirectory = @"C:\Program Files (x86)\IntelSWTools\openvino";
-#if DEBUG
+#if DebugLibrary
             AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Debug"));
 #else
             AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Release"));
@@ -288,7 +306,7 @@ namespace Nick.InferenceEngine.Net
             AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\inference_engine\external\hddl\bin"));
 #else
             const string baseDirectory = @"C:\Users\nickr\Source\Code\dldt";
-#if DEBUG
+#if DebugLibrary
             AddDllDirectory(Path.Combine(baseDirectory, @"bin\intel64\Debug"));
 #else
             AddDllDirectory(Path.Combine(baseDirectory, @"bin\intel64\Release"));
@@ -299,7 +317,7 @@ namespace Nick.InferenceEngine.Net
 #endif
         }
 
-#if DEBUG
+#if DebugLibrary
         private const string Library = "inference_engine_c_apid";
 #else
         private const string Library = "inference_engine_c_api";
@@ -368,7 +386,7 @@ namespace Nick.InferenceEngine.Net
         public static extern IEStatusCode ie_core_get_available_devices(ie_core_t core, ref ie_available_devices_t available_devices);
 
         [DllImport(Library)]
-        public static extern void ie_core_available_devices_free(ie_available_devices_t available_devices);
+        public static extern void ie_core_available_devices_free(ref ie_available_devices_t available_devices);
 
         [DllImport(Library)]
         public static extern void ie_exec_network_free(ref ie_executable_network_t ie_exec_network);
@@ -485,7 +503,7 @@ namespace Nick.InferenceEngine.Net
         public static extern IEStatusCode ie_blob_make_memory(in tensor_desc_t tensorDesc, out ie_blob_t blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_make_memory_from_preallocated(in tensor_desc_t tensorDesc, IntPtr ptr, size_t size, out ie_blob_t blob);
+        public static extern IEStatusCode ie_blob_make_memory_from_preallocated(in tensor_desc_t tensorDesc, in byte data, size_t size, out ie_blob_t blob);
 
         [DllImport(Library)]
         public static extern IEStatusCode ie_blob_make_memory_with_roi(ie_blob_t inputBlob, in roi_t roi, out ie_blob_t blob);
@@ -497,10 +515,10 @@ namespace Nick.InferenceEngine.Net
         public static extern IEStatusCode ie_blob_make_memory_i420(ie_blob_t y, ie_blob_t u, ie_blob_t v, out ie_blob_t i420blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_size(ie_blob_t blob, ref int size_result);
+        public static extern IEStatusCode ie_blob_size(ie_blob_t blob, out int size_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_byte_size(ie_blob_t blob, ref int bsize_result);
+        public static extern IEStatusCode ie_blob_byte_size(ie_blob_t blob, out int bsize_result);
 
         [DllImport(Library)]
         public static extern IEStatusCode ie_blob_deallocate(ref ie_blob_t blob);
@@ -515,29 +533,13 @@ namespace Nick.InferenceEngine.Net
         public static extern IEStatusCode ie_blob_get_dims(ie_blob_t blob, ref dimensions_t dims_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_get_layout(ie_blob_t blob, ref layout_e layout_result);
+        public static extern IEStatusCode ie_blob_get_layout(ie_blob_t blob, out layout_e layout_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_get_precision(ie_blob_t blob, ref precision_e prec_result);
+        public static extern IEStatusCode ie_blob_get_precision(ie_blob_t blob, out precision_e prec_result);
 
         [DllImport(Library)]
         public static extern void ie_blob_free(ref ie_blob_t blob);
-
-        public static string GetInputName(this ie_network_t network, size_t number)
-        {
-            ie_network_get_input_name(network, number, out var namePtr).Check(nameof(ie_network_get_input_name));
-            var result = Marshal.PtrToStringAnsi(namePtr)!;
-            ie_network_name_free(ref namePtr);
-            return result;
-        }
-
-        public static string GetOutputName(this ie_network_t network, size_t number)
-        {
-            ie_network_get_output_name(network, number, out var namePtr).Check(nameof(ie_network_get_output_name));
-            var result = Marshal.PtrToStringAnsi(namePtr)!;
-            ie_network_name_free(ref namePtr);
-            return result;
-        }
     }
 #pragma warning restore IDE1006 // Naming Styles
 }

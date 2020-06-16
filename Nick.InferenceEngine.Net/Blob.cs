@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if USE
+using System;
 
 using Nick.Inference;
 
@@ -91,3 +92,4 @@ namespace Nick.InferenceEngine.Net
 
     }
 }
+#endif
