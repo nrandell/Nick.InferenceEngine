@@ -1,5 +1,6 @@
-﻿#if USE
-using System;
+﻿using System;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 using Nick.Inference;
 
@@ -7,60 +8,121 @@ namespace Nick.InferenceEngine.Net
 {
     using static InferenceEngineLibrary;
 
+    using ie_blob_t = IntPtr;
+
     public class Blob : IDisposable
     {
-        public NativeMemory NativeMemory { get; }
+        private static int _nextId = 0;
 
-        public tensor_desc_t Description { get; }
-        private IntPtr _blob;
+        public int Id { get; } = Interlocked.Increment(ref _nextId);
 
-        public static implicit operator IntPtr(Blob blob) => blob._blob;
+        private ie_blob_t _blob;
+        internal ie_blob_t NativeBlob => _blob;
+        private bool disposedValue;
+        private bool _ownsMemory;
 
-        public dimensions_t Dimensions { get; }
-
-        public Blob(layout_e layout, dimensions_t dimensions, precision_e precision)
+        public Blob(ie_blob_t blob)
         {
-            var description = new tensor_desc_t(layout, dimensions, precision);
-            var size = 1L;
-            for (var i = 0; i < dimensions.ranks; i++)
-            {
-                size *= dimensions[i];
-            }
-
-            size *= PrecisionSize(precision);
-            NativeMemory = new NativeMemory((int)size);
-            ie_blob_make_memory_from_preallocated(description, NativeMemory.Pointer, size, out var blob).Check(nameof(ie_blob_make_memory_from_preallocated));
-            Description = description;
             _blob = blob;
-            Dimensions = dimensions;
         }
 
-        private int PrecisionSize(precision_e precision)
+        public Blob(in tensor_desc_t description, Span<byte> data)
         {
-            switch (precision)
+            ie_blob_make_memory_from_preallocated(in description, MemoryMarshal.GetReference(data), data.Length, out _blob).Check(nameof(ie_blob_make_memory_from_preallocated));
+        }
+
+        public unsafe ReadOnlyMemory<T> AsMemory<T>()
+            where T : unmanaged
+        {
+            var size = Size;
+            var buffer = new ie_blob_buffer_t();
+
+            ie_blob_get_cbuffer(_blob, ref buffer).Check(nameof(ie_blob_get_cbuffer));
+            var manager = new UnmanagedMemoryManager<T>((T*)buffer.cbuffer, Size);
+            return manager.Memory;
+        }
+
+        public Blob(in tensor_desc_t description)
+        {
+            ie_blob_make_memory(description, out _blob).Check(nameof(ie_blob_make_memory));
+            _ownsMemory = true;
+        }
+
+        public Blob(Blob yBlob, Blob uBlob, Blob vBlob)
+        {
+            ie_blob_make_memory_i420(yBlob._blob, uBlob._blob, vBlob._blob, out _blob).Check(nameof(ie_blob_make_memory_i420));
+        }
+
+        public Blob(Blob yBlob, Blob uvBlob)
+        {
+            ie_blob_make_memory_nv12(yBlob._blob, uvBlob._blob, out _blob).Check(nameof(ie_blob_make_memory_nv12));
+        }
+
+        public Blob(Blob sourceBlob, in roi_t roi)
+        {
+            ie_blob_make_memory_with_roi(sourceBlob._blob, roi, out _blob).Check(nameof(ie_blob_make_memory_with_roi));
+        }
+
+        public Blob FromArea(int id, int x, int y, int width, int height)
+        {
+            var roi = new roi_t(id, x, y, width, height);
+            return new Blob(this, roi);
+        }
+
+        public unsafe ReadOnlySpan<T> AsSpan<T>() where T : unmanaged
+        {
+            var size = Size;
+            var buffer = new ie_blob_buffer_t();
+
+            ie_blob_get_cbuffer(_blob, ref buffer).Check(nameof(ie_blob_get_cbuffer));
+            return new ReadOnlySpan<T>(buffer.cbuffer, Size);
+        }
+
+        public int Size
+        {
+            get
             {
-                case precision_e.U8:
-                case precision_e.I8:
-                    return 1;
-
-                case precision_e.I16:
-                case precision_e.FP16:
-                case precision_e.U16:
-                    return 2;
-
-                case precision_e.FP32:
-                case precision_e.I32:
-                    return 4;
-
-                case precision_e.I64:
-                    return 8;
-
-                default: throw new InvalidOperationException($"Unknown precision size {precision}");
+                ie_blob_size(_blob, out var size).Check(nameof(ie_blob_size));
+                return size;
             }
         }
 
-        #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
+        public int ByteSize
+        {
+            get
+            {
+                ie_blob_byte_size(_blob, out var size).Check(nameof(ie_blob_byte_size));
+                return size;
+            }
+        }
+
+        public dimensions_t Dimensions
+        {
+            get
+            {
+                var dimensions = new dimensions_t();
+                ie_blob_get_dims(_blob, ref dimensions).Check(nameof(ie_blob_get_dims));
+                return dimensions;
+            }
+        }
+
+        public layout_e Layout
+        {
+            get
+            {
+                ie_blob_get_layout(_blob, out var layout).Check(nameof(ie_blob_get_layout));
+                return layout;
+            }
+        }
+
+        public precision_e Precision
+        {
+            get
+            {
+                ie_blob_get_precision(_blob, out var precision).Check(nameof(ie_blob_get_precision));
+                return precision;
+            }
+        }
 
         protected virtual void Dispose(bool disposing)
         {
@@ -68,11 +130,17 @@ namespace Nick.InferenceEngine.Net
             {
                 if (disposing)
                 {
-                    // TODO: dispose managed state (managed objects).
-                    NativeMemory.Dispose();
+                    // TODO: dispose managed state (managed objects)
                 }
 
-                ie_blob_deallocate(ref _blob).Check(nameof(ie_blob_deallocate));
+                if (_ownsMemory)
+                {
+                    ie_blob_deallocate(ref _blob);
+                }
+                else
+                {
+                    ie_blob_free(ref _blob);
+                }
 
                 disposedValue = true;
             }
@@ -80,16 +148,16 @@ namespace Nick.InferenceEngine.Net
 
         ~Blob()
         {
-            Dispose(false);
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Console.WriteLine($"Finalizer for blob {Id}");
+            Dispose(disposing: false);
         }
 
         public void Dispose()
         {
-            Dispose(true);
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        #endregion
-
     }
 }
-#endif

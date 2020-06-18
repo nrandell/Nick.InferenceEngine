@@ -1,15 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Xml.Linq;
+using System.Threading;
 
 namespace Nick.InferenceEngine.Net
 {
     using static InferenceEngineLibrary;
-    using ie_blob_t = IntPtr;
+
     using ie_infer_request_t = IntPtr;
 
     public class InferenceEngineRequest : IDisposable
     {
+        private static int _nextId = 0;
+
+        public int Id { get; } = Interlocked.Increment(ref _nextId);
+
         private readonly InferenceEngineExecutableNetwork _executableNetwork;
         private ie_infer_request_t _inferRequest;
 
@@ -19,15 +22,15 @@ namespace Nick.InferenceEngine.Net
             ie_exec_network_create_infer_request(executableNetwork.ExecutableNetwork, out _inferRequest).Check(nameof(ie_exec_network_create_infer_request));
         }
 
-        public void SetBlob(string name, SimpleBlob blob)
+        public void SetBlob(string name, Blob blob)
         {
-            ie_infer_request_set_blob(_inferRequest, name, blob.Blob).Check(nameof(ie_infer_request_set_blob));
+            ie_infer_request_set_blob(_inferRequest, name, blob.NativeBlob).Check(nameof(ie_infer_request_set_blob));
         }
 
-        public SimpleBlob GetBlob(string name)
+        public Blob GetBlob(string name)
         {
             ie_infer_request_get_blob(_inferRequest, name, out var blob).Check(nameof(ie_infer_request_get_blob));
-            return new SimpleBlob(blob);
+            return new Blob(blob);
         }
 
         public void Infer()
@@ -42,11 +45,6 @@ namespace Nick.InferenceEngine.Net
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                }
-
                 ie_infer_request_free(ref _inferRequest);
 
                 disposedValue = true;
@@ -55,6 +53,7 @@ namespace Nick.InferenceEngine.Net
 
         ~InferenceEngineRequest()
         {
+            Console.WriteLine($"Finalizer for request {Id}");
             Dispose(false);
         }
 

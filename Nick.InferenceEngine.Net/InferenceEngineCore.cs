@@ -1,13 +1,19 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Nick.InferenceEngine.Net
 {
     using static InferenceEngineLibrary;
+
     using ie_core_t = IntPtr;
 
     public class InferenceEngineCore : IDisposable
     {
+        private static int _nextId = 0;
+
+        public int Id { get; } = Interlocked.Increment(ref _nextId);
+
         private ie_core_t _core;
 
         internal ie_core_t Core => _core;
@@ -71,11 +77,6 @@ namespace Nick.InferenceEngine.Net
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                }
-
                 ie_core_free(ref _core);
 
                 disposedValue = true;
@@ -84,6 +85,7 @@ namespace Nick.InferenceEngine.Net
 
         ~InferenceEngineCore()
         {
+            Console.WriteLine($"Finalizer for core {Id}");
             Dispose(false);
         }
 

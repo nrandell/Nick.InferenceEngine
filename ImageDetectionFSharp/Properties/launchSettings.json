@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ImageDetectionFSharp": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

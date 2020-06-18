@@ -5,14 +5,15 @@ open System.Drawing
 
 type BoundingBox =
     {
+        Image: int
         Label: string
-        X: float32
-        Y: float32
-        Height: float32
-        Width: float32
+        X: int
+        Y: int
+        Height: int
+        Width: int
         Confidence: float32
     }
-    member x.Rect = RectangleF(x.X, x.Y, x.Width, x.Height)
+    member x.Rect = Rectangle(x.X, x.Y, x.Width, x.Height)
 
 let parseOutputs (outputs : inref<ReadOnlySpan<float32>>) threshold maxProposalCount objectSize width height =
     let results = ResizeArray()
@@ -24,16 +25,21 @@ let parseOutputs (outputs : inref<ReadOnlySpan<float32>>) threshold maxProposalC
         if imageId >= 0 then
             let label = int outputs.[index 1]
             let confidence = outputs.[index 2]
-            let xMin = outputs.[index 3]
-            let yMin = outputs.[index 4]
-            let xMax = outputs.[index 5]
-            let yMax = outputs.[index 6]
+            let xMin = int (outputs.[index 3] * width)
+            let yMin = int (outputs.[index 4] * height)
+            let xMax = int (outputs.[index 5] * width)
+            let yMax = int (outputs.[index 6] * height)
 
-            printfn "%d %d %d %f (%f,%f) - (%f,%f) (%d,%d) - (%d,%d)" detection label imageId confidence xMin yMin xMax yMax (int (xMin * width)) (int (yMin * height)) (int (xMax * width)) (int (yMax * height))
+            printfn "%d %d %d %f (%d,%d) - (%d,%d)" detection label imageId confidence xMin yMin xMax yMax
+            let box = { Image=imageId; Label= "face"; X = xMin; Y = yMin; Width = xMax - xMin; Height = yMax - yMin; Confidence = confidence}
+            results.Add box
+
         else
             finished <- true
 
         detection <- detection + 1
+    results.ToArray()
+
 
             
 

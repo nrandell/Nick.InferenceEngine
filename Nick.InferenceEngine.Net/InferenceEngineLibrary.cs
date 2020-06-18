@@ -1,4 +1,5 @@
-﻿#define Production
+﻿//#define DebugLibrary
+
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -182,6 +183,15 @@ namespace Nick.InferenceEngine.Net
         public size_t posY;   // H upper left coordinate of roi
         public size_t sizeX;  // W size of roi
         public size_t sizeY;  // H size of roi
+
+        public roi_t(int id, int x, int y, int width, int height)
+        {
+            this.id = id;
+            this.posX = x;
+            this.posY = y;
+            this.sizeX = width;
+            this.sizeY = height;
+        }
     }
 
     [StructLayout(LayoutKind.Explicit)]
@@ -293,10 +303,11 @@ namespace Nick.InferenceEngine.Net
 
         static InferenceEngineLibrary()
         {
-#if Production
-            const string baseDirectory = @"C:\Program Files (x86)\IntelSWTools\openvino";
+            const string installDirectory = @"C:\Program Files (x86)\IntelSWTools\openvino";
+            const string baseDirectory = installDirectory;
 #if DebugLibrary
             AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Debug"));
+            AddDllDirectory(@"C:\Users\nickr\Source\Repos\ie_c_api\build\src\Debug");
 #else
             AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Release"));
 #endif
@@ -304,24 +315,9 @@ namespace Nick.InferenceEngine.Net
             AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\ngraph\lib"));
             AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\inference_engine\external\tbb\bin"));
             AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\inference_engine\external\hddl\bin"));
-#else
-            const string baseDirectory = @"C:\Users\nickr\Source\Code\dldt";
-#if DebugLibrary
-            AddDllDirectory(Path.Combine(baseDirectory, @"bin\intel64\Debug"));
-#else
-            AddDllDirectory(Path.Combine(baseDirectory, @"bin\intel64\Release"));
-#endif
-
-            AddDllDirectory(Path.Combine(baseDirectory, @"inference-engine\temp\tbb\bin"));
-            AddDllDirectory(Path.Combine(baseDirectory, @"external\hddl\bin"));
-#endif
         }
 
-#if DebugLibrary
-        private const string Library = "inference_engine_c_apid";
-#else
         private const string Library = "inference_engine_c_api";
-#endif
 
         public static void Check(this IEStatusCode code, string message = "IEStatusCode error")
         {

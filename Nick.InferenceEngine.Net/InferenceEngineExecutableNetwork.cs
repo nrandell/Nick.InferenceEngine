@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 
 namespace Nick.InferenceEngine.Net
 {
@@ -12,6 +9,10 @@ namespace Nick.InferenceEngine.Net
 
     public class InferenceEngineExecutableNetwork : IDisposable
     {
+        private static int _nextId = 0;
+
+        public int Id { get; } = Interlocked.Increment(ref _nextId);
+
         private ie_executable_network_t _executable_network;
         internal ie_executable_network_t ExecutableNetwork => _executable_network;
 
@@ -32,10 +33,6 @@ namespace Nick.InferenceEngine.Net
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                }
                 ie_exec_network_free(ref _executable_network);
 
                 disposedValue = true;
@@ -44,6 +41,7 @@ namespace Nick.InferenceEngine.Net
 
         ~InferenceEngineExecutableNetwork()
         {
+            Console.WriteLine($"Finalizer for executable network {Id}");
             Dispose(false);
         }
 

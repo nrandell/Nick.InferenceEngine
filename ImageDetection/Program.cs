@@ -92,7 +92,7 @@ namespace ImageDetection
                     var tensorDescription = new tensor_desc_t(layout_e.NHWC, imageDimensions, precision_e.U8);
 
                     Console.WriteLine("Create blob");
-                    using var inputBlob = new SimpleBlob(tensorDescription, MemoryMarshal.Cast<Rgb24, byte>(pixelSpan));
+                    using var inputBlob = new Blob(tensorDescription, MemoryMarshal.Cast<Rgb24, byte>(pixelSpan));
                     request.SetBlob(mainInputName, inputBlob);
 
                     for (var i = 0; i < 10; i++)

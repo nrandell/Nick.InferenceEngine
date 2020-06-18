@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Nick.FFMpeg.Net\Nick.FFMpeg.Net.csproj" />
     <ProjectReference Include="..\Nick.InferenceEngine.Net\Nick.InferenceEngine.Net.csproj" />
   </ItemGroup>
 

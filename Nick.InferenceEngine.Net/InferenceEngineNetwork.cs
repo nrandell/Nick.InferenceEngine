@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Nick.InferenceEngine.Net
 {
@@ -11,6 +12,10 @@ namespace Nick.InferenceEngine.Net
 
     public partial class InferenceEngineNetwork : IDisposable
     {
+        private static int _nextId = 0;
+
+        public int Id { get; } = Interlocked.Increment(ref _nextId);
+
         private ie_network_t _network;
         internal ie_network_t Network => _network;
 
@@ -128,6 +133,18 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+        public colorformat_e GetColorFormat(string inputName)
+        {
+            colorformat_e result = default;
+            ie_network_get_color_format(_network, inputName, ref result).Check(nameof(ie_network_get_color_format));
+            return result;
+        }
+
+        public void SetColorFormat(string inputName, colorformat_e colorFormat)
+        {
+            ie_network_set_color_format(_network, inputName, colorFormat).Check(nameof(ie_network_set_color_format));
+        }
+
         public int NumberOfOutputs
         {
             get
@@ -185,11 +202,6 @@ namespace Nick.InferenceEngine.Net
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                }
-
                 ie_network_free(ref _network);
 
                 disposedValue = true;
@@ -198,6 +210,7 @@ namespace Nick.InferenceEngine.Net
 
         ~InferenceEngineNetwork()
         {
+            Console.WriteLine($"Finalizer for network {Id}");
             Dispose(false);
         }
 
