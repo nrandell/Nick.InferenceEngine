@@ -12,16 +12,13 @@ namespace Nick.FFMpeg.Net
         public int Id { get; } = Interlocked.Increment(ref _nextId);
         private bool disposedValue;
 
-        public int Width { get; }
-        public int Height { get; }
-        public AVPixelFormat Format { get; }
+        public int Width => (Frame == null) ? -1 : Frame->width;
+        public int Height => (Frame == null) ? -1 : Frame->height;
+        public AVPixelFormat Format => (Frame == null) ? AVPixelFormat.AV_PIX_FMT_NONE : (AVPixelFormat)Frame->format;
         public AVFrame* Frame { get; private set; }
 
-        public RawFrame(int width, int height, AVPixelFormat format, AVFrame* frame)
+        public RawFrame(AVFrame* frame)
         {
-            Width = width;
-            Height = height;
-            Format = format;
             Frame = frame;
         }
 

@@ -46,7 +46,7 @@ namespace Nick.FFMpeg.Net
                         {
                             ffmpeg.av_frame_unref(frame);
                             ffmpeg.avcodec_receive_frame(decoderContext, frame);
-                            return new RawFrame(width, height, format, frame);
+                            return new RawFrame(frame);
                         }
                         catch (Exception)
                         {

@@ -25,7 +25,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nick.FFMpeg.Net", "Nick.FFM
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ImageDetection", "ImageDetection\ImageDetection.csproj", "{72E1DB04-BD7B-44A6-B7FA-D4DC05E73346}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ImageDetectionFSharp", "ImageDetectionFSharp\ImageDetectionFSharp.fsproj", "{7666B8C3-9F8B-4115-8014-31FC466BC759}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "ImageDetectionFSharp", "ImageDetectionFSharp\ImageDetectionFSharp.fsproj", "{7666B8C3-9F8B-4115-8014-31FC466BC759}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "VideoDetectionFSharp", "VideoDetectionFSharp\VideoDetectionFSharp.fsproj", "{666ED0ED-A040-4479-9BB3-C2EBEC3E5883}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDetection", "VideoDetection\VideoDetection.csproj", "{DC8318ED-8472-40AA-8698-BA97376FC0FB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -53,6 +57,14 @@ Global
 		{7666B8C3-9F8B-4115-8014-31FC466BC759}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7666B8C3-9F8B-4115-8014-31FC466BC759}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7666B8C3-9F8B-4115-8014-31FC466BC759}.Release|Any CPU.Build.0 = Release|Any CPU
+		{666ED0ED-A040-4479-9BB3-C2EBEC3E5883}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{666ED0ED-A040-4479-9BB3-C2EBEC3E5883}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{666ED0ED-A040-4479-9BB3-C2EBEC3E5883}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{666ED0ED-A040-4479-9BB3-C2EBEC3E5883}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC8318ED-8472-40AA-8698-BA97376FC0FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC8318ED-8472-40AA-8698-BA97376FC0FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC8318ED-8472-40AA-8698-BA97376FC0FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC8318ED-8472-40AA-8698-BA97376FC0FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
