@@ -27,7 +27,9 @@ namespace Nick.FFMpeg.Net
 
         // To get this info ffmpeg.exe -f dshow -list_options true -i video="USB Video Device"
         // or ffmpeg.exe  -i "rtsp://192.168.100.10:7447/nFmibiRKMk4POaKK"
+#pragma warning disable MA0051 // Method is too long
         public unsafe void Decode<TTarget>(string? format, string device, string decodePixelFormat, int decodeWidth, int decodeHeight,
+#pragma warning restore MA0051 // Method is too long
             BoundedWriter<TTarget> writer,
             CancellationToken ct)
             where TTarget : IFFMpegMemoryTarget
@@ -47,7 +49,7 @@ namespace Nick.FFMpeg.Net
             }
 
             AVDictionary* options = null;
-            ffmpeg.av_dict_set(&options, "video_size", $"{decodeWidth}x{decodeHeight}", ffmpeg.AV_DICT_APPEND);
+            ffmpeg.av_dict_set(&options, "video_size", FormattableString.Invariant($"{decodeWidth}x{decodeHeight}"), ffmpeg.AV_DICT_APPEND);
             ffmpeg.av_dict_set(&options, "pixel_format", decodePixelFormat, ffmpeg.AV_DICT_APPEND);
 
             AVFormatContext* inputContext = null;
@@ -94,10 +96,10 @@ namespace Nick.FFMpeg.Net
             }
 #endif
 
-            ffmpeg.avcodec_open2(decoderContext, decoder, null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
+            ffmpeg.avcodec_open2(decoderContext, decoder, options: null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
             var converterContext = ffmpeg.sws_getContext(video->codec->width, video->codec->height, sourceFormat,
                 _targetWidth, _targetHeight, _targetPixelFormat,
-                ffmpeg.SWS_FAST_BILINEAR, null, null, null);
+                ffmpeg.SWS_FAST_BILINEAR, srcFilter: null, dstFilter: null, param: null);
 
             var targetBufferSize = ffmpeg.av_image_get_buffer_size(_targetPixelFormat, _targetWidth, _targetHeight, 1);
 
@@ -146,7 +148,8 @@ namespace Nick.FFMpeg.Net
                             {
                                 break;
                             }
-                            else if (error == ffmpeg.AVERROR_EOF)
+
+                            if (error == ffmpeg.AVERROR_EOF)
                             {
                                 return;
                             }

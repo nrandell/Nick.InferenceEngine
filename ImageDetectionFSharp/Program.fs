@@ -74,7 +74,7 @@ let handlePixels width height layout (dimensions: dimensions_t) (pixelSpan: inre
     use request = new InferenceEngineRequest(executableNetwork)
 
     //let dimensions = dimensions_t(1, 3, height, width)
-    let tensorDescription = tensor_desc_t(layout, &dimensions, precision_e.U8)
+    let tensorDescription = tensor_desc_t(layout, dimensions, precision_e.U8)
 
     use inputBlob = new Blob(&tensorDescription, pixelSpan)
     request.SetBlob(mainInputName, inputBlob)
@@ -186,7 +186,7 @@ let ffmpegRunner() =
 let nv12FfmpegRunner() =
     let createBlob channels height width (data: nativeptr<byte>) =
         let dimensions = dimensions_t(1, channels, height, width)
-        let tensor = tensor_desc_t(layout_e.NHWC, &dimensions, precision_e.U8)
+        let tensor = tensor_desc_t(layout_e.NHWC, dimensions, precision_e.U8)
         let span = Span<byte>(data |> NativePtr.toVoidPtr, channels * height * width)
         new Blob(&tensor, span)
 
@@ -248,7 +248,7 @@ let nv12FfmpegRunner() =
 let i420FfmpegRunner() =
     let createBlob channels height lineWidth width (data: nativeptr<byte>) =
         let dimensions = dimensions_t(1, channels, height, lineWidth)
-        let tensor = tensor_desc_t(layout_e.NHWC, &dimensions, precision_e.U8)
+        let tensor = tensor_desc_t(layout_e.NHWC, dimensions, precision_e.U8)
         let span = Span<byte>(data |> NativePtr.toVoidPtr, channels * height * lineWidth)
         use basicBlob = new Blob(&tensor, span)
         let roi = new roi_t(1, 0, 0, width, height)

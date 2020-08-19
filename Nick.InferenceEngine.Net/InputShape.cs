@@ -3,7 +3,7 @@
     public class InputShape
     {
         public string Name { get; }
-        public dimensions_t Dimensions { get; }
+        public dimensions_t Dimensions;
 
         public InputShape(string name, dimensions_t dimensions)
         {

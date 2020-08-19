@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -9,15 +10,17 @@ namespace VideoDetection
 {
     public class ImageMarkup
     {
-        private string OutputDirectory = @"c:\temp\ssdoutputs";
+        private readonly string OutputDirectory = @"c:\temp\ssdoutputs";
         private int imageId = 0;
         private const int maxImages = 32;
 
         public async Task MarkupImage(Bitmap bitmap, IEnumerable<SSDProcessor.BoundingBox> boxes, CancellationToken ct)
         {
             using var graphics = Graphics.FromImage(bitmap);
-            using var pen = new Pen(Brushes.Red);
-            pen.Width = 8;
+            using var pen = new Pen(Brushes.Red)
+            {
+                Width = 8,
+            };
 
             var width = bitmap.Width;
             var height = bitmap.Height;
@@ -33,7 +36,7 @@ namespace VideoDetection
                 graphics.DrawRectangle(pen, rect);
             }
 
-            var fileName = Path.Combine(OutputDirectory, $"img-{imageId++:D4}.png");
+            var fileName = Path.Combine(OutputDirectory, FormattableString.Invariant($"img-{imageId++:D4}.png"));
             if (!Directory.Exists(OutputDirectory))
             {
                 Directory.CreateDirectory(OutputDirectory);

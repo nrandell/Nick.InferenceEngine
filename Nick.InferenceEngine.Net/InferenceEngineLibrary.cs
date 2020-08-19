@@ -1,9 +1,14 @@
 ﻿//#define DebugLibrary
 
 using System;
+#if !DebugLibrary
 using System.IO;
+#endif
+
 using System.Runtime.InteropServices;
 using System.Text;
+
+#pragma warning disable MA0048 // File name must match type name
 
 namespace Nick.InferenceEngine.Net
 {
@@ -33,7 +38,7 @@ namespace Nick.InferenceEngine.Net
         NETWORK_NOT_LOADED = -3,
         NOT_IMPLEMENTED = -2,
         GENERAL_ERROR = -1,
-        OK = 0
+        OK = 0,
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -101,8 +106,19 @@ namespace Nick.InferenceEngine.Net
     public unsafe struct dimensions_t
     {
         private const int MaxDims = 8;
-        public size_t ranks;
+        public readonly size_t ranks;
         public fixed size_t dims[MaxDims];
+
+        public void Set(int index, size_t value)
+        {
+            if ((index < 0) || (index >= ranks))
+            {
+#pragma warning disable MA0012 // Do not raise reserved exception type
+                throw new IndexOutOfRangeException();
+#pragma warning restore MA0012 // Do not raise reserved exception type
+            }
+            dims[index] = value;
+        }
 
         public size_t this[int index]
         {
@@ -110,13 +126,25 @@ namespace Nick.InferenceEngine.Net
             {
                 if ((index < 0) || (index >= ranks))
                 {
+#pragma warning disable MA0012 // Do not raise reserved exception type
                     throw new IndexOutOfRangeException();
+#pragma warning restore MA0012 // Do not raise reserved exception type
                 }
                 return dims[index];
             }
+            set
+            {
+                if ((index < 0) || (index >= ranks))
+                {
+#pragma warning disable MA0012 // Do not raise reserved exception type
+                    throw new IndexOutOfRangeException();
+#pragma warning restore MA0012 // Do not raise reserved exception type
+                }
+                dims[index] = value;
+            }
         }
 
-        public dimensions_t(params int[] dims)
+        public dimensions_t(params size_t[] dims)
         {
             if (dims.Length > MaxDims)
             {
@@ -161,13 +189,13 @@ namespace Nick.InferenceEngine.Net
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
-    public struct tensor_desc_t
+    public readonly struct tensor_desc_t
     {
-        public layout_e layout;
-        public dimensions_t dims;
-        public precision_e precision;
+        public readonly layout_e layout;
+        public readonly dimensions_t dims;
+        public readonly precision_e precision;
 
-        public tensor_desc_t(layout_e layout, in dimensions_t dims, precision_e precision)
+        public tensor_desc_t(layout_e layout, dimensions_t dims, precision_e precision)
         {
             this.layout = layout;
             this.dims = dims;
@@ -176,13 +204,13 @@ namespace Nick.InferenceEngine.Net
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
-    public struct roi_t
+    public readonly struct roi_t
     {
-        public size_t id;     // ID of a roi
-        public size_t posX;   // W upper left coordinate of roi
-        public size_t posY;   // H upper left coordinate of roi
-        public size_t sizeX;  // W size of roi
-        public size_t sizeY;  // H size of roi
+        public readonly size_t id;     // ID of a roi
+        public readonly size_t posX;   // W upper left coordinate of roi
+        public readonly size_t posY;   // H upper left coordinate of roi
+        public readonly size_t sizeX;  // W size of roi
+        public readonly size_t sizeY;  // H size of roi
 
         public roi_t(int id, int x, int y, int width, int height)
         {
@@ -219,7 +247,7 @@ namespace Nick.InferenceEngine.Net
         I64 = 72,   // 64bit signed integer value
         U64 = 73,   // 64bit unsigned integer value
         CUSTOM = 80, // custom precision has it's own name and size of elements
-        UNSPECIFIED = 255 //< Unspecified value. Used by default
+        UNSPECIFIED = 255, //< Unspecified value. Used by default
     }
 
     public enum layout_e
@@ -256,7 +284,7 @@ namespace Nick.InferenceEngine.Net
     {
         NO_RESIZE = 0,
         RESIZE_BILINEAR,
-        RESIZE_AREA
+        RESIZE_AREA,
     }
 
     public enum colorformat_e
@@ -270,7 +298,7 @@ namespace Nick.InferenceEngine.Net
         I420,        //< I420 color format represented as compound Y+U+V blob
     }
 
-    public class IEStatusCodeException : ApplicationException
+    public class IEStatusCodeException : Exception
     {
         public IEStatusCode Code { get; }
 
@@ -292,7 +320,7 @@ namespace Nick.InferenceEngine.Net
         }
     }
 
-    public static partial class InferenceEngineLibrary
+    public static class InferenceEngineLibrary
     {
         private static void AddDllDirectory(string pathName)
         {
@@ -303,21 +331,28 @@ namespace Nick.InferenceEngine.Net
 
         static InferenceEngineLibrary()
         {
+#if DebugLibrary
+            //AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Debug"));
+            //AddDllDirectory(@"C:\Users\nickr\Source\Repos\ie_c_api\build\src\Debug");
+            AddDllDirectory(@"C:\Users\nickr\Source\Code\openvino\bin\intel64\Debug");
+            AddDllDirectory(@"C:\Users\nickr\Source\Code\openvino\inference-engine\temp\tbb\bin");
+            AddDllDirectory(@"C:\Users\nickr\Source\Code\openvino\inference-engine\temp\gna_02.00.00.1047\win64\x64");
+#else
             const string installDirectory = @"C:\Program Files (x86)\IntelSWTools\openvino";
             const string baseDirectory = installDirectory;
-#if DebugLibrary
-            AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Debug"));
-            AddDllDirectory(@"C:\Users\nickr\Source\Repos\ie_c_api\build\src\Debug");
-#else
             AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Release"));
-#endif
 
             AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\ngraph\lib"));
             AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\inference_engine\external\tbb\bin"));
             AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\inference_engine\external\hddl\bin"));
+#endif
         }
 
+#if DebugLibrary
+        private const string Library = "inference_engine_c_apid";
+#else
         private const string Library = "inference_engine_c_api";
+#endif
 
         public static void Check(this IEStatusCode code, string message = "IEStatusCode error")
         {
@@ -536,6 +571,20 @@ namespace Nick.InferenceEngine.Net
 
         [DllImport(Library)]
         public static extern void ie_blob_free(ref ie_blob_t blob);
+
+        public static string GetApiVersion()
+        {
+            var version = ie_c_api_version();
+            try
+            {
+                return Marshal.PtrToStringAnsi(version.api_version)!;
+            }
+            finally
+            {
+                ie_version_free(ref version);
+            }
+        }
     }
 #pragma warning restore IDE1006 // Naming Styles
 }
+#pragma warning restore MA0048 // File name must match type name

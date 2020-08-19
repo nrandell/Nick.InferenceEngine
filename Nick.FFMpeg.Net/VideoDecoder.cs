@@ -1,43 +1,40 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Channels;
 
 using FFmpeg.AutoGen;
 
 namespace Nick.FFMpeg.Net
 {
-    public unsafe class VideoDecoder : IDisposable
+    public unsafe abstract class VideoDecoder : IDisposable
     {
-        private struct Initialised
+        [StructLayout(LayoutKind.Sequential)]
+        protected readonly struct Initialised
         {
             public readonly AVFormatContext* inputContext;
             public readonly AVCodecContext* decoderContext;
             public readonly AVPacket* packet;
-            public readonly AVFrame* frame;
+            public readonly AVFrame* spareFrame;
             public readonly int streamIndex;
 
-            public Initialised(AVFormatContext* inputContext, int streamIndex, AVCodecContext* decoderContext, AVPacket* packet, AVFrame* frame)
+            public Initialised(AVFormatContext* inputContext, int streamIndex, AVCodecContext* decoderContext, AVPacket* packet, AVFrame* spareFrame)
             {
                 this.inputContext = inputContext;
                 this.streamIndex = streamIndex;
                 this.decoderContext = decoderContext;
                 this.packet = packet;
-                this.frame = frame;
+                this.spareFrame = spareFrame;
             }
         }
         static VideoDecoder() => Helper.Initialise();
-        private static int _nextId = 0;
-
-        public int Id { get; } = Interlocked.Increment(ref _nextId);
 
         private bool disposedValue;
-        private readonly Initialised _initialised;
-        private readonly int _maxFrames;
+        protected readonly Initialised _initialised;
 
-        public VideoDecoder(string device, string? format = null, int maxFrames = 1)
+        protected VideoDecoder(string device, string? format = null)
         {
             _initialised = Initialise(device, format);
-            _maxFrames = maxFrames;
         }
 
         private Initialised Initialise(string device, string? format)
@@ -49,7 +46,7 @@ namespace Nick.FFMpeg.Net
                 inputFormat = ffmpeg.av_find_input_format(format);
                 if (inputFormat == null)
                 {
-                    throw new ArgumentException(nameof(format));
+                    throw new ArgumentException("Failed to find input format", nameof(format));
                 }
             }
             else
@@ -58,7 +55,7 @@ namespace Nick.FFMpeg.Net
             }
 
             AVFormatContext* inputContext = null;
-            ffmpeg.avformat_open_input(&inputContext, device, inputFormat, null).ThrowExceptionIfError(nameof(ffmpeg.avformat_open_input));
+            ffmpeg.avformat_open_input(&inputContext, device, inputFormat, options: null).ThrowExceptionIfError(nameof(ffmpeg.avformat_open_input));
             try
             {
                 AVCodec* decoder = null;
@@ -66,13 +63,16 @@ namespace Nick.FFMpeg.Net
                 var decoderContext = ffmpeg.avcodec_alloc_context3(decoder);
                 try
                 {
-                    ffmpeg.avcodec_open2(decoderContext, decoder, null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
+                    var video = inputContext->streams[streamIndex];
+                    ffmpeg.avcodec_parameters_to_context(decoderContext, video->codecpar).ThrowExceptionIfError(nameof(ffmpeg.avcodec_parameters_to_context));
+
+                    ffmpeg.avcodec_open2(decoderContext, decoder, options: null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
 
                     var packet = ffmpeg.av_packet_alloc();
                     try
                     {
-                        var frame = ffmpeg.av_frame_alloc();
-                        return new Initialised(inputContext, streamIndex, decoderContext, packet, frame);
+                        var spareFrame = ffmpeg.av_frame_alloc();
+                        return new Initialised(inputContext, streamIndex, decoderContext, packet, spareFrame);
                     }
                     catch (Exception)
                     {
@@ -93,126 +93,134 @@ namespace Nick.FFMpeg.Net
             }
         }
 
+        public enum FrameHandledStatus { Again, Finished, Success };
 
-        public void ProcessingLoop(ChannelReader<RawFrame> emptyFrames, ChannelWriter<RawFrame> populatedFrames, CancellationToken ct)
+        protected abstract bool TryGetNextFrame([NotNullWhen(true)] out RawFrame? frame);
+
+        protected abstract bool TryWritePoulatedFrame(RawFrame frame);
+
+        public bool TryHandleNextPacket(CancellationToken ct)
         {
-            void handleError(int error, string context)
-            {
-                if (error < 0)
-                {
-                    var exception = new FFMpegException(error, context);
-                    populatedFrames.Complete(exception);
-                    throw exception;
-                }
-            }
-
             var packet = _initialised.packet;
-            var frame = _initialised.frame;
             var inputContext = _initialised.inputContext;
-            var decoderContext = _initialised.decoderContext;
             var streamIndex = _initialised.streamIndex;
-            var allocatedFrames = 0;
-
-            RawFrame? tryGetNextFrame()
+            do
             {
-                if (emptyFrames.TryRead(out var rawFrame))
+                ffmpeg.av_packet_unref(packet);
+                var error = ffmpeg.av_read_frame(inputContext, packet);
+                if (error == ffmpeg.AVERROR_EOF)
                 {
-                    return rawFrame;
+                    return false;
                 }
-                else
-                {
-                    if (allocatedFrames < _maxFrames)
-                    {
-                        var frame = ffmpeg.av_frame_alloc();
-                        rawFrame = new RawFrame(frame);
-                        allocatedFrames++;
-                        return rawFrame;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
+                HandleError(error, nameof(ffmpeg.av_read_frame));
+            } while (!ct.IsCancellationRequested && (packet->stream_index != streamIndex));
+
+            ffmpeg.avcodec_send_packet(_initialised.decoderContext, packet).ThrowExceptionIfError(nameof(ffmpeg.avcodec_send_packet));
+            return true;
+        }
+
+        protected AVFrame* GetFrameToUse(AVFrame* spareFrame, ref RawFrame? rawFrame)
+        {
+            AVFrame* frameToUse;
+            if (rawFrame == null)
+            {
+                TryGetNextFrame(out rawFrame);
             }
 
+            if (rawFrame == null)
+            {
+                frameToUse = spareFrame;
+            }
+            else
+            {
+                frameToUse = rawFrame.Frame;
+            }
+            ffmpeg.av_frame_unref(frameToUse);
 
-            var rawFrame = tryGetNextFrame();
+            return frameToUse;
+        }
+
+        private FrameHandledStatus TryHandleNextFrame(ref RawFrame? rawFrame)
+        {
+            var spareFrame = _initialised.spareFrame;
+            var frameToUse = GetFrameToUse(spareFrame, ref rawFrame);
+            var decoderContext = _initialised.decoderContext;
+
+            var error = ffmpeg.avcodec_receive_frame(decoderContext, frameToUse);
+            if (error == ffmpeg.AVERROR(ffmpeg.EAGAIN))
+            {
+                return FrameHandledStatus.Again;
+            }
+
+            if (error == ffmpeg.AVERROR_EOF)
+            {
+                return FrameHandledStatus.Finished;
+            }
+
+            HandleError(error, nameof(ffmpeg.avcodec_receive_frame));
+
+            if (rawFrame != null)
+            {
+                if (TryWritePoulatedFrame(rawFrame))
+                {
+                    rawFrame = null;
+                    return FrameHandledStatus.Success;
+                }
+
+                var exception = new Exception("Failed to write raw frame");
+                throw exception;
+            }
+
+            return FrameHandledStatus.Success;
+        }
+
+        public virtual void ProcessingLoop(CancellationToken ct)
+        {
+            TryGetNextFrame(out var rawFrame);
 
             while (!ct.IsCancellationRequested)
             {
-                int error;
-                do
+                if (!TryHandleNextPacket(ct))
                 {
-                    ffmpeg.av_packet_unref(packet);
-                    error = ffmpeg.av_read_frame(inputContext, packet);
-                    if (error == ffmpeg.AVERROR_EOF)
-                    {
-                        populatedFrames.Complete();
-                        return;
-                    }
-                    handleError(error, nameof(ffmpeg.av_read_frame));
-                } while (!ct.IsCancellationRequested && (packet->stream_index != streamIndex));
-
-                ffmpeg.avcodec_send_packet(decoderContext, packet).ThrowExceptionIfError(nameof(ffmpeg.avcodec_send_packet));
+                    return;
+                }
 
                 while (!ct.IsCancellationRequested)
                 {
-                    AVFrame* frameToUse;
-                    if (rawFrame == null)
-                    {
-                        rawFrame = tryGetNextFrame();
-                    }
-                    if (rawFrame == null)
-                    {
-                        frameToUse = frame;
-                    }
-                    else
-                    {
-                        frameToUse = rawFrame.Frame;
-                    }
-
-
-                    ffmpeg.av_frame_unref(frameToUse);
-                    error = ffmpeg.avcodec_receive_frame(decoderContext, frameToUse);
-                    if (error == ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                    var status = TryHandleNextFrame(ref rawFrame);
+                    if (status == FrameHandledStatus.Success)
                     {
                         break;
                     }
-                    else if (error == ffmpeg.AVERROR_EOF)
+                    if (status == FrameHandledStatus.Finished)
                     {
-                        populatedFrames.Complete();
                         return;
                     }
-                    handleError(error, nameof(ffmpeg.avcodec_receive_frame));
-                    if (rawFrame != null)
+                    if (status == FrameHandledStatus.Again)
                     {
-                        if (populatedFrames.TryWrite(rawFrame))
-                        {
-                            rawFrame = null;
-                        }
-                        else
-                        {
-                            var exception = new ApplicationException("Failed to write raw frame");
-                            populatedFrames.Complete(exception);
-                            throw exception;
-                        }
+                        break;
                     }
+
+                    break;
                 }
             }
         }
 
+        protected static void HandleError(int error, string context)
+        {
+            if (error < 0)
+            {
+                var exception = new FFMpegException(error, context);
+                throw exception;
+            }
+        }
 
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects)
-                }
-
                 var packet = _initialised.packet;
-                var frame = _initialised.frame;
+                var frame = _initialised.spareFrame;
                 var inputContext = _initialised.inputContext;
                 var decoderContext = _initialised.decoderContext;
 
@@ -225,10 +233,11 @@ namespace Nick.FFMpeg.Net
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~VideoDecoder()
+#pragma warning restore MA0055 // Do not use destructor
         {
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Console.WriteLine($"Finalizer for video decoder {Id}");
             Dispose(disposing: false);
         }
 

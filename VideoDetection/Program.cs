@@ -22,6 +22,7 @@ namespace VideoDetection
                 var ct = cts.Token;
 
                 using var detector = new Detector(@"C:\Users\nickr\Documents\Intel\OpenVINO\openvino_models\intel\face-detection-0104\FP16\face-detection-0104.xml");
+                DumpCoreInformation(detector.Core);
 
                 var boundedOptions = new BoundedChannelOptions(MaxFrames) { AllowSynchronousContinuations = false, SingleReader = true, SingleWriter = true };
                 var emptyChannel = Channel.CreateBounded<RawFrame>(boundedOptions);
@@ -30,7 +31,7 @@ namespace VideoDetection
                 var decoderThread = new Thread(() => DecoderThread(emptyChannel.Reader, populatedChannel.Writer, ct));
                 decoderThread.Start();
 
-                await detector.ProcessAsync(populatedChannel.Reader, emptyChannel.Writer, ct);
+                await detector.ProcessAsync(populatedChannel.Reader, emptyChannel.Writer, "GPU", ct);
             }
             catch (Exception ex)
             {
@@ -38,9 +39,25 @@ namespace VideoDetection
             }
         }
 
+        private static void DumpCoreInformation(InferenceEngineCore core)
+        {
+            var devices = core.GetAvailableDevices();
+            foreach (var device in devices)
+            {
+                Console.WriteLine($"Device: {device}");
+                var versions = core.GetCoreVersions(device);
+                foreach (var version in versions)
+                {
+                    Console.WriteLine(FormattableString.Invariant($"{version.DeviceName} \"{version.Description}\" {version.Major}.{version.Minor}.{version.BuildNumber}"));
+                }
+            }
+        }
+
         private static void DecoderThread(ChannelReader<RawFrame> emptyFrames, ChannelWriter<RawFrame> populatedFrames, CancellationToken ct)
         {
-            using var decoder = new VideoDecoder("rtsp://rtsp:Network123@192.168.100.206", maxFrames: MaxFrames);
+            //using var decoder = new VideoDecoder("rtsp://rtsp:Network123@192.168.100.206", maxFrames: MaxFrames);
+            //using var decoder = new VideoDecoder("rtsp://192.168.100.10:7447/N2jRqfXC7MaVh0Ni", maxFrames: MaxFrames);
+            using var decoder = new VideoDecoder("rtsp://192.168.100.10:7447/bcli83pgTMLu5tUK");
             try
             {
                 decoder.ProcessingLoop(emptyFrames, populatedFrames, ct);
@@ -48,16 +65,6 @@ namespace VideoDetection
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error in decoder thread: {ex}");
-            }
-        }
-
-        private static async Task ProcessingTask(ChannelReader<RawFrame> populatedFrames, ChannelWriter<RawFrame> emptyFrames, CancellationToken ct)
-        {
-            await foreach (var frame in populatedFrames.ReadAllAsync(ct))
-            {
-                Console.WriteLine($"Got frame {frame.Width}x{frame.Height} of {frame.Format}");
-                await Task.Delay(1000, ct);
-                await emptyFrames.WriteAsync(frame, ct);
             }
         }
     }

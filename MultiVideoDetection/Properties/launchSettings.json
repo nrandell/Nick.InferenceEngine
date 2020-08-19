@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MultiVideoDetection": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

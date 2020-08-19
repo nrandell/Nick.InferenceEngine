@@ -7,15 +7,14 @@ namespace Nick.FFMpeg.Net
 {
     public unsafe class RawFrame : IDisposable
     {
-        private static int _nextId = 0;
-
-        public int Id { get; } = Interlocked.Increment(ref _nextId);
         private bool disposedValue;
 
         public int Width => (Frame == null) ? -1 : Frame->width;
         public int Height => (Frame == null) ? -1 : Frame->height;
         public AVPixelFormat Format => (Frame == null) ? AVPixelFormat.AV_PIX_FMT_NONE : (AVPixelFormat)Frame->format;
         public AVFrame* Frame { get; private set; }
+
+        public RawFrame() : this(ffmpeg.av_frame_alloc()) { }
 
         public RawFrame(AVFrame* frame)
         {
@@ -26,10 +25,6 @@ namespace Nick.FFMpeg.Net
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects)
-                }
                 var frame = Frame;
                 Frame = null;
                 ffmpeg.av_frame_free(&frame);
@@ -38,9 +33,10 @@ namespace Nick.FFMpeg.Net
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~RawFrame()
+#pragma warning restore MA0055 // Do not use destructor
         {
-            Console.WriteLine($"Finalizer for raw frame {Id}");
             Dispose(disposing: false);
         }
 

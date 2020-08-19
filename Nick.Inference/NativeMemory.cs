@@ -34,11 +34,6 @@ namespace Nick.Inference
         {
             if (Owned && !disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                }
-
                 var pointer = Pointer;
                 Pointer = IntPtr.Zero;
                 Marshal.FreeHGlobal(pointer);
@@ -47,16 +42,18 @@ namespace Nick.Inference
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~NativeMemory()
+#pragma warning restore MA0055 // Do not use destructor
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(false);
+            Dispose(disposing: false);
         }
 
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
         #endregion

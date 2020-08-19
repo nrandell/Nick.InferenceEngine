@@ -2,6 +2,8 @@
 using System.Runtime.InteropServices;
 using System.Threading;
 
+using Microsoft.Win32.SafeHandles;
+
 using Nick.Inference;
 
 namespace Nick.InferenceEngine.Net
@@ -12,14 +14,10 @@ namespace Nick.InferenceEngine.Net
 
     public class Blob : IDisposable
     {
-        private static int _nextId = 0;
-
-        public int Id { get; } = Interlocked.Increment(ref _nextId);
-
         private ie_blob_t _blob;
         internal ie_blob_t NativeBlob => _blob;
         private bool disposedValue;
-        private bool _ownsMemory;
+        private readonly bool _ownsMemory;
 
         public Blob(ie_blob_t blob)
         {
@@ -31,7 +29,7 @@ namespace Nick.InferenceEngine.Net
             ie_blob_make_memory_from_preallocated(in description, MemoryMarshal.GetReference(data), data.Length, out _blob).Check(nameof(ie_blob_make_memory_from_preallocated));
         }
 
-        public unsafe ReadOnlyMemory<T> AsMemory<T>()
+        public unsafe ReadOnlyMemory<T> AsReadOnlyMemory<T>()
             where T : unmanaged
         {
             var size = Size;
@@ -39,6 +37,17 @@ namespace Nick.InferenceEngine.Net
 
             ie_blob_get_cbuffer(_blob, ref buffer).Check(nameof(ie_blob_get_cbuffer));
             var manager = new UnmanagedMemoryManager<T>((T*)buffer.cbuffer, Size);
+            return manager.Memory;
+        }
+
+        public unsafe Memory<T> AsMemory<T>()
+            where T : unmanaged
+        {
+            var size = Size;
+            var buffer = new ie_blob_buffer_t();
+
+            ie_blob_get_buffer(_blob, ref buffer).Check(nameof(ie_blob_get_cbuffer));
+            var manager = new UnmanagedMemoryManager<T>((T*)buffer.buffer, Size);
             return manager.Memory;
         }
 
@@ -128,11 +137,6 @@ namespace Nick.InferenceEngine.Net
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects)
-                }
-
                 if (_ownsMemory)
                 {
                     ie_blob_deallocate(ref _blob);
@@ -146,10 +150,11 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~Blob()
+#pragma warning restore MA0055 // Do not use destructor
         {
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Console.WriteLine($"Finalizer for blob {Id}");
             Dispose(disposing: false);
         }
 

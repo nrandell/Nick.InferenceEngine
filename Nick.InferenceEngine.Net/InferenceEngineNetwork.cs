@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace Nick.InferenceEngine.Net
 {
@@ -12,10 +11,6 @@ namespace Nick.InferenceEngine.Net
 
     public partial class InferenceEngineNetwork : IDisposable
     {
-        private static int _nextId = 0;
-
-        public int Id { get; } = Interlocked.Increment(ref _nextId);
-
         private ie_network_t _network;
         internal ie_network_t Network => _network;
 
@@ -133,6 +128,44 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+        public unsafe void Reshape(InputShape[] newShapes)
+        {
+            var shapes = new input_shapes_t();
+            ie_network_get_input_shapes(_network, ref shapes).Check(nameof(ie_network_get_input_shapes));
+            try
+            {
+                var numShapes = (int)shapes.shape_num;
+                if (newShapes.Length != numShapes)
+                {
+                    throw new InvalidOperationException(FormattableString.Invariant($"Mismatch in shape count. Got {newShapes.Length}, expected {numShapes}"));
+                }
+                var span = new Span<input_shape_t>(shapes.shapes, numShapes);
+                for (var i = 0; i < numShapes; i++)
+                {
+                    var newShape = newShapes[i];
+                    var name = Marshal.PtrToStringAnsi(span[i].name)!;
+                    if (!string.Equals(name, newShape.Name, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(FormattableString.Invariant($"Mismatch in shape {i} name. Got {newShape.Name} expected {name}"));
+                    }
+                    var ranks = span[i].shape.ranks;
+                    if (ranks != newShape.Dimensions.ranks)
+                    {
+                        throw new InvalidOperationException(FormattableString.Invariant($"Mismatch in dimensions {i}. Got {newShape.Dimensions.ranks} expected {ranks}"));
+                    }
+                    for (var j = 0; j < ranks; j++)
+                    {
+                        span[i].shape[j] = newShape.Dimensions[j];
+                    }
+                }
+                ie_network_reshape(_network, shapes).Check(nameof(ie_network_reshape));
+            }
+            finally
+            {
+                ie_network_input_shapes_free(ref shapes);
+            }
+        }
+
         public colorformat_e GetColorFormat(string inputName)
         {
             colorformat_e result = default;
@@ -208,15 +241,16 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~InferenceEngineNetwork()
+#pragma warning restore MA0055 // Do not use destructor
         {
-            Console.WriteLine($"Finalizer for network {Id}");
-            Dispose(false);
+            Dispose(disposing: false);
         }
 
         public void Dispose()
         {
-            Dispose(true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
         #endregion

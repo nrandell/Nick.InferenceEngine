@@ -10,10 +10,6 @@ namespace Nick.InferenceEngine.Net
 
     public class InferenceEngineCore : IDisposable
     {
-        private static int _nextId = 0;
-
-        public int Id { get; } = Interlocked.Increment(ref _nextId);
-
         private ie_core_t _core;
 
         internal ie_core_t Core => _core;
@@ -83,15 +79,16 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~InferenceEngineCore()
+#pragma warning restore MA0055 // Do not use destructor
         {
-            Console.WriteLine($"Finalizer for core {Id}");
-            Dispose(false);
+            Dispose(disposing: false);
         }
 
         public void Dispose()
         {
-            Dispose(true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
         #endregion

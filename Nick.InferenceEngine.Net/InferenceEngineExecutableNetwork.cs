@@ -9,10 +9,6 @@ namespace Nick.InferenceEngine.Net
 
     public class InferenceEngineExecutableNetwork : IDisposable
     {
-        private static int _nextId = 0;
-
-        public int Id { get; } = Interlocked.Increment(ref _nextId);
-
         private ie_executable_network_t _executable_network;
         internal ie_executable_network_t ExecutableNetwork => _executable_network;
 
@@ -39,15 +35,16 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~InferenceEngineExecutableNetwork()
+#pragma warning restore MA0055 // Do not use destructor
         {
-            Console.WriteLine($"Finalizer for executable network {Id}");
-            Dispose(false);
+            Dispose(disposing: false);
         }
 
         public void Dispose()
         {
-            Dispose(true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
         #endregion

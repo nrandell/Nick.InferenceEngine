@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 
 namespace Nick.InferenceEngine.Net
 {
@@ -9,10 +8,6 @@ namespace Nick.InferenceEngine.Net
 
     public class InferenceEngineRequest : IDisposable
     {
-        private static int _nextId = 0;
-
-        public int Id { get; } = Interlocked.Increment(ref _nextId);
-
         private readonly InferenceEngineExecutableNetwork _executableNetwork;
         private ie_infer_request_t _inferRequest;
 
@@ -51,15 +46,16 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+#pragma warning disable MA0055 // Do not use destructor
         ~InferenceEngineRequest()
+#pragma warning restore MA0055 // Do not use destructor
         {
-            Console.WriteLine($"Finalizer for request {Id}");
-            Dispose(false);
+            Dispose(disposing: false);
         }
 
         public void Dispose()
         {
-            Dispose(true);
+            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
         #endregion

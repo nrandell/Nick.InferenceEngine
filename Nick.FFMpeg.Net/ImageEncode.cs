@@ -23,7 +23,7 @@ namespace Nick.FFMpeg.Net
             var codec = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_PNG);
             if (codec == null)
             {
-                throw new ArgumentException("Failed to find codec");
+                throw new ArgumentException("Failed to find codec", nameof(file));
             }
 
             var encoderContext = ffmpeg.avcodec_alloc_context3(codec);
@@ -38,7 +38,7 @@ namespace Nick.FFMpeg.Net
                 encoderContext->width = Width;
                 encoderContext->time_base = new AVRational { den = 1, num = 1 };
 
-                ffmpeg.avcodec_open2(encoderContext, codec, null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
+                ffmpeg.avcodec_open2(encoderContext, codec, options: null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
 
                 var packet = ffmpeg.av_packet_alloc();
                 var frame = ffmpeg.av_frame_alloc();

@@ -15,15 +15,15 @@ namespace VideoDetection
     {
         private bool disposedValue;
         private readonly InferenceEngineNetwork _network;
-        private readonly InferenceEngineCore _core;
 
+        public InferenceEngineCore Core { get; }
         public Detector(string networkName)
         {
             var core = new InferenceEngineCore();
             try
             {
                 _network = new InferenceEngineNetwork(core, networkName);
-                _core = core;
+                Core = core;
             }
             catch (Exception)
             {
@@ -34,7 +34,7 @@ namespace VideoDetection
 
         private unsafe Blob Initialise(RawFrame frame)
         {
-            Blob createBlob(int height, int lineWidth, int width, byte* data)
+            static Blob createBlob(int height, int lineWidth, int width, byte* data)
             {
                 var dimensions = new dimensions_t(1, 1, height, lineWidth);
                 var tensor = new tensor_desc_t(layout_e.NHWC, dimensions, precision_e.U8);
@@ -56,7 +56,7 @@ namespace VideoDetection
             return new Blob(yBlob, uBlob, vBlob);
         }
 
-        public async Task ProcessAsync(ChannelReader<RawFrame> populatedFrames, ChannelWriter<RawFrame> usedFrames, CancellationToken ct)
+        public async Task ProcessAsync(ChannelReader<RawFrame> populatedFrames, ChannelWriter<RawFrame> usedFrames, string deviceName, CancellationToken ct)
         {
             var network = _network;
             var mainInputName = network.GetInputName(0);
@@ -69,7 +69,7 @@ namespace VideoDetection
             var processor = new SSDProcessor();
             var markup = new ImageMarkup();
 
-            using var executableNetwork = new InferenceEngineExecutableNetwork(network, "MYRIAD");
+            using var executableNetwork = new InferenceEngineExecutableNetwork(network, deviceName);
 
             await foreach (var frame in populatedFrames.ReadAllAsync(ct))
             {
@@ -113,23 +113,11 @@ namespace VideoDetection
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects)
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
                 disposedValue = true;
+                _network.Dispose();
+                Core.Dispose();
             }
         }
-
-        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-        // ~Detector()
-        // {
-        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        //     Dispose(disposing: false);
-        // }
 
         public void Dispose()
         {

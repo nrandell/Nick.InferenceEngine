@@ -5,7 +5,7 @@ using FFmpeg.AutoGen;
 
 namespace Nick.FFMpeg.Net
 {
-    public class FFMpegException : ApplicationException
+    public class FFMpegException : Exception
     {
         private static unsafe string? AvStrerror(int error)
         {
@@ -25,7 +25,7 @@ namespace Nick.FFMpeg.Net
         {
         }
 
-        public FFMpegException(int errno, string context) : base($"FFMPeg error {errno}: {AvStrerror(errno)}")
+        public FFMpegException(int errno, string context) : base(FormattableString.Invariant($"FFMPeg error {errno}: {AvStrerror(errno)}"))
         {
             Errno = errno;
             Context = context;

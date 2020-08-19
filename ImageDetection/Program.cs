@@ -6,6 +6,8 @@ using Nick.InferenceEngine.Net;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
+#pragma warning disable MA0076 // Do not use implicit culture-sensitive ToString in interpolated strings
+
 namespace ImageDetection
 {
     using static InferenceEngineLibrary;
@@ -25,55 +27,15 @@ namespace ImageDetection
                 Console.WriteLine($"image: {image}");
                 if (image.TryGetSinglePixelSpan(out var pixelSpan))
                 {
-                    Console.WriteLine("Got span");
-
-                    var apiVersion = GetApiVersion();
-                    Console.WriteLine($"Using API version: {apiVersion}");
+                    DumpVersion();
 
                     using var core = new InferenceEngineCore();
 
-                    var devices = core.GetAvailableDevices();
-                    foreach (var device in devices)
-                    {
-                        Console.WriteLine($"Device: {device}");
-                        var versions = core.GetCoreVersions(device);
-                        foreach (var version in versions)
-                        {
-                            Console.WriteLine($"{version.DeviceName} \"{version.Description}\" {version.Major}.{version.Minor}.{version.BuildNumber}");
-                        }
-                    }
+                    DumpCoreInformation(core);
 
                     using var network = new InferenceEngineNetwork(core, NetworkName);
 
-                    Console.WriteLine($"Network name: {network.NetworkName}");
-
-                    var inputShapes = network.GetInputShapes();
-                    for (var i = 0; i < inputShapes.Length; i++)
-                    {
-                        var shape = inputShapes[i];
-                        Console.WriteLine($"Input shape[{i}] = {shape.Name} {shape.Dimensions}");
-                    }
-
-                    var numberOfInputs = network.NumberOfInputs;
-                    for (var i = 0; i < numberOfInputs; i++)
-                    {
-                        var name = network.GetInputName(i);
-                        var precision = network.GetInputPrecision(name);
-                        var layout = network.GetInputLayout(name);
-                        var dimensions = network.GetInputDimensions(name);
-                        var resizeAlgorithm = network.GetInputResizeAlgorithm(name);
-                        Console.WriteLine($"Input[{i}] = {name} [{precision} {layout}] {dimensions}");
-                    }
-
-                    var numberOfOutputs = network.NumberOfOutputs;
-                    for (var i = 0; i < numberOfOutputs; i++)
-                    {
-                        var name = network.GetOutputName(i);
-                        var precision = network.GetOutputPrecision(name);
-                        var layout = network.GetOutputLayout(name);
-                        var dimensions = network.GetOutputDimensions(name);
-                        Console.WriteLine($"Output[{i}] = {name} [{precision} {layout}] {dimensions}");
-                    }
+                    DumpNetwork(network);
 
                     var mainInputName = network.GetInputName(0);
                     var mainOutputName = network.GetOutputName(0);
@@ -105,14 +67,80 @@ namespace ImageDetection
                     using var outputBlob = request.GetBlob(mainOutputName);
 
                     Console.WriteLine($"Output blob. Sizes = {outputBlob.Size} {outputBlob.ByteSize}. [{outputBlob.Layout} {outputBlob.Precision}] {outputBlob.Dimensions}");
-
                 }
-
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: {ex.Message}");
             }
         }
+
+        private static void DumpNetwork(InferenceEngineNetwork network)
+        {
+            Console.WriteLine($"Network name: {network.NetworkName}");
+            DumpShape(network);
+            DumpInputs(network);
+            DumpOutputs(network);
+        }
+
+        private static void DumpShape(InferenceEngineNetwork network)
+        {
+            var inputShapes = network.GetInputShapes();
+            for (var i = 0; i < inputShapes.Length; i++)
+            {
+                var shape = inputShapes[i];
+                Console.WriteLine($"Input shape[{i}] = {shape.Name} {shape.Dimensions}");
+            }
+        }
+
+        private static void DumpVersion()
+        {
+            Console.WriteLine("Got span");
+
+            var apiVersion = GetApiVersion();
+            Console.WriteLine($"Using API version: {apiVersion}");
+        }
+
+        private static void DumpOutputs(InferenceEngineNetwork network)
+        {
+            var numberOfOutputs = network.NumberOfOutputs;
+            for (var i = 0; i < numberOfOutputs; i++)
+            {
+                var name = network.GetOutputName(i);
+                var precision = network.GetOutputPrecision(name);
+                var layout = network.GetOutputLayout(name);
+                var dimensions = network.GetOutputDimensions(name);
+                Console.WriteLine($"Output[{i}] = {name} [{precision} {layout}] {dimensions}");
+            }
+        }
+
+        private static void DumpInputs(InferenceEngineNetwork network)
+        {
+            var numberOfInputs = network.NumberOfInputs;
+            for (var i = 0; i < numberOfInputs; i++)
+            {
+                var name = network.GetInputName(i);
+                var precision = network.GetInputPrecision(name);
+                var layout = network.GetInputLayout(name);
+                var dimensions = network.GetInputDimensions(name);
+                var resizeAlgorithm = network.GetInputResizeAlgorithm(name);
+                Console.WriteLine($"Input[{i}] = {name} [{precision} {layout}] {dimensions} {resizeAlgorithm}");
+            }
+        }
+
+        private static void DumpCoreInformation(InferenceEngineCore core)
+        {
+            var devices = core.GetAvailableDevices();
+            foreach (var device in devices)
+            {
+                Console.WriteLine($"Device: {device}");
+                var versions = core.GetCoreVersions(device);
+                foreach (var version in versions)
+                {
+                    Console.WriteLine($"{version.DeviceName} \"{version.Description}\" {version.Major}.{version.Minor}.{version.BuildNumber}");
+                }
+            }
+        }
     }
 }
+#pragma warning restore MA0076 // Do not use implicit culture-sensitive ToString in interpolated strings
