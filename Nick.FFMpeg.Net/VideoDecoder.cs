@@ -37,7 +37,7 @@ namespace Nick.FFMpeg.Net
             _initialised = Initialise(device, format);
         }
 
-        private Initialised Initialise(string device, string? format)
+        private static Initialised Initialise(string device, string? format)
         {
             AVInputFormat* inputFormat;
 

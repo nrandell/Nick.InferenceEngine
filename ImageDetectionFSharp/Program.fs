@@ -125,7 +125,7 @@ let imageSharpRunner() =
     | true ->
         let byteSpan = MemoryMarshal.Cast(pixelSpan)
         let first = System.Runtime.InteropServices.MemoryMarshal.GetReference(byteSpan)
-        let dimensions = dimensions_t(1, image.Height, image.Width, 3)
+        let dimensions = dimensions_t(1L, int64 image.Height, int64 image.Width, 3L)
         handlePixels image.Width image.Height layout_e.NHWC dimensions &byteSpan
 
 
@@ -148,7 +148,7 @@ let systemDrawingRunner() =
         let address = NativePtr.ofNativeInt<int> data.Scan0
         let ptr = NativePtr.toVoidPtr address
         let pixels = Span(ptr, dataSize)
-        let dimensions = dimensions_t(1, 3, data.Height, data.Width)
+        let dimensions = dimensions_t(1L, 3L, int64 data.Height, int64 data.Width)
         handlePixels data.Width data.Height layout_e.NHWC dimensions &pixels
     finally
         bitmap.UnlockBits(data)
@@ -162,7 +162,7 @@ let openCVRunner() =
     let voidmemory = NativePtr.toVoidPtr memory
 
     let pixels = Span<byte>(voidmemory, dataSize)
-    let dimensions = dimensions_t(1, image.Channels(), image.Rows, image.Cols)
+    let dimensions = dimensions_t(1L, int64 (image.Channels()), int64 image.Rows, int64 image.Cols)
     handlePixels image.Width image.Height layout_e.NHWC dimensions &pixels
 
 
@@ -171,21 +171,22 @@ let ffmpegRunner() =
     let decoder = new ImageDecode()
     let width = 3264
     let height = 2448
-    use rawFrame = decoder.DecodeRaw(imageName)
+    use rawFrame = new RawFrame()
+    decoder.DecodeRaw(imageName, rawFrame)
     //let struct (destData, _destLineSize) = decoder.DecodeFile(imageName, width, height)
     let size = 3 * width * height
     let frame = NativePtr.get rawFrame.Frame 0
     let first = frame.data.[0u] |> NativePtr.toVoidPtr
 
     let pixels = Span(first, size)
-    let dimensions = dimensions_t(1, 3, height, width)
+    let dimensions = dimensions_t(1L, 3L, int64 height, int64 width)
     
     handlePixels width height layout_e.NHWC dimensions &pixels
 
 
 let nv12FfmpegRunner() =
     let createBlob channels height width (data: nativeptr<byte>) =
-        let dimensions = dimensions_t(1, channels, height, width)
+        let dimensions = dimensions_t(1L, int64 channels, int64 height, int64 width)
         let tensor = tensor_desc_t(layout_e.NHWC, dimensions, precision_e.U8)
         let span = Span<byte>(data |> NativePtr.toVoidPtr, channels * height * width)
         new Blob(&tensor, span)
@@ -247,7 +248,7 @@ let nv12FfmpegRunner() =
 
 let i420FfmpegRunner() =
     let createBlob channels height lineWidth width (data: nativeptr<byte>) =
-        let dimensions = dimensions_t(1, channels, height, lineWidth)
+        let dimensions = dimensions_t(1L, int64 channels, int64 height, int64 lineWidth)
         let tensor = tensor_desc_t(layout_e.NHWC, dimensions, precision_e.U8)
         let span = Span<byte>(data |> NativePtr.toVoidPtr, channels * height * lineWidth)
         use basicBlob = new Blob(&tensor, span)
@@ -256,7 +257,8 @@ let i420FfmpegRunner() =
 
     let decoder = new ImageDecode()
 
-    use rawFrame = decoder.DecodeRaw(imageName)
+    use rawFrame = new RawFrame()
+    decoder.DecodeRaw(imageName, rawFrame)
     let frame = NativePtr.get rawFrame.Frame 0
     let inputWidth = rawFrame.Width
     let inputHeight = rawFrame.Height

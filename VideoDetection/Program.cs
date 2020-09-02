@@ -57,10 +57,10 @@ namespace VideoDetection
         {
             //using var decoder = new VideoDecoder("rtsp://rtsp:Network123@192.168.100.206", maxFrames: MaxFrames);
             //using var decoder = new VideoDecoder("rtsp://192.168.100.10:7447/N2jRqfXC7MaVh0Ni", maxFrames: MaxFrames);
-            using var decoder = new VideoDecoder("rtsp://192.168.100.10:7447/bcli83pgTMLu5tUK");
+            using var decoder = new ChannelVideoDecoder("rtsp://192.168.100.10:7447/bcli83pgTMLu5tUK", emptyFrames, populatedFrames);
             try
             {
-                decoder.ProcessingLoop(emptyFrames, populatedFrames, ct);
+                decoder.ProcessingLoop(ct);
             }
             catch (Exception ex)
             {
