@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Nick.InferenceEngine.Net
 {
@@ -10,11 +13,48 @@ namespace Nick.InferenceEngine.Net
     {
         private readonly InferenceEngineExecutableNetwork _executableNetwork;
         private ie_infer_request_t _inferRequest;
+        private readonly Object _padlock = new object();
+        private bool _active;
+        private IntPtr _cbArray;
+        private GCHandle _handle;
 
-        public InferenceEngineRequest(InferenceEngineExecutableNetwork executableNetwork)
+        public void WaitForFinished()
+        {
+            var padlock = _padlock;
+            lock (padlock)
+            {
+                if (_active)
+                {
+                    Monitor.Wait(padlock);
+                }
+            }
+        }
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static void CompleteCallBack(IntPtr arg)
+        {
+            var handle = GCHandle.FromIntPtr(arg);
+            if (handle.Target is InferenceEngineRequest request)
+            {
+                request.InstanceCompleteCallBack();
+            }
+            else
+            {
+                Console.WriteLine(FormattableString.Invariant($"Cannot get request from handle: {arg}"));
+            }
+        }
+
+        public unsafe InferenceEngineRequest(InferenceEngineExecutableNetwork executableNetwork)
         {
             _executableNetwork = executableNetwork;
             ie_exec_network_create_infer_request(executableNetwork.ExecutableNetwork, out _inferRequest).Check(nameof(ie_exec_network_create_infer_request));
+
+            _handle = GCHandle.Alloc(this);
+            var cbArray = Marshal.AllocHGlobal(sizeof(IntPtr) * 2);
+            var span = new Span<IntPtr>((void*)cbArray, 2);
+            span[0] = (IntPtr)(delegate*<IntPtr, void>)&CompleteCallBack;
+            span[1] = GCHandle.ToIntPtr(_handle);
+            _cbArray = cbArray;
         }
 
         public void SetBlob(string name, Blob blob)
@@ -33,13 +73,58 @@ namespace Nick.InferenceEngine.Net
             ie_infer_request_infer(_inferRequest).Check(nameof(ie_infer_request_infer));
         }
 
+        private void InstanceCompleteCallBack()
+        {
+            var padlock = _padlock;
+            lock (padlock)
+            {
+                if (!_active)
+                {
+                    Console.WriteLine("Completed when not active");
+                }
+                _active = false;
+                Monitor.PulseAll(padlock);
+            }
+        }
+
+        public void StartInfer()
+        {
+            var padlock = _padlock;
+            lock (padlock)
+            {
+                if (_active)
+                {
+                    throw new InvalidOperationException("Already inferring");
+                }
+                _active = true;
+            }
+
+            try
+            {
+                ie_infer_set_completion_callback(_inferRequest, _cbArray).Check(nameof(ie_infer_set_completion_callback));
+                ie_infer_request_infer_async(_inferRequest).Check(nameof(ie_infer_request_infer_async));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to start inferring: {ex}");
+                InstanceCompleteCallBack();
+            }
+        }
+
         #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
+        private bool disposedValue; // To detect redundant calls
 
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
             {
+                if (_active)
+                {
+                    Console.WriteLine("Still active");
+                }
+                _handle.Free();
+                Marshal.FreeHGlobal(_cbArray);
+                _cbArray = IntPtr.Zero;
                 ie_infer_request_free(ref _inferRequest);
 
                 disposedValue = true;

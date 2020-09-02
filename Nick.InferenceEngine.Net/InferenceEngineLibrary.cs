@@ -1,4 +1,4 @@
-﻿//#define DebugLibrary
+﻿#define DebugLibrary
 
 using System;
 #if !DebugLibrary
@@ -88,10 +88,14 @@ namespace Nick.InferenceEngine.Net
         public fixed int range_for_streams[2];
     }
 
+    //[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    //public delegate void completeCallBackFunc(IntPtr args);
+
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
-    public struct ie_complete_call_back_t
+    public unsafe struct ie_complete_call_back_t
     {
-        public delegate void completeCallBackFunc(IntPtr args);
+        public delegate* cdecl<IntPtr, void> completeCallBack;
+        //public IntPtr completeCallBack;
         public IntPtr args;
     }
 
@@ -354,7 +358,7 @@ namespace Nick.InferenceEngine.Net
         private const string Library = "inference_engine_c_api";
 #endif
 
-        public static void Check(this IEStatusCode code, string message = "IEStatusCode error")
+        internal static void Check(this IEStatusCode code, string message = "IEStatusCode error")
         {
             if (code != IEStatusCode.OK)
             {
@@ -363,214 +367,217 @@ namespace Nick.InferenceEngine.Net
         }
 
         [DllImport(Library)]
-        public static extern ie_version_t ie_c_api_version();
+        internal static extern ie_version_t ie_c_api_version();
 
         [DllImport(Library)]
-        public static extern void ie_version_free(ref ie_version_t version);
+        internal static extern void ie_version_free(ref ie_version_t version);
 
         [DllImport(Library)]
-        public static extern void ie_param_free(ref ie_param_t param);
+        internal static extern void ie_param_free(ref ie_param_t param);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_create(string XmlConfigFile, out ie_core_t core);
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_create(string XmlConfigFile, out ie_core_t core);
 
         [DllImport(Library)]
-        public static extern void ie_core_free(ref ie_core_t core);
+        internal static extern void ie_core_free(ref ie_core_t core);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_get_versions(ie_core_t core, string deviceName, ref ie_core_versions_t versions);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_get_versions(ie_core_t core, string deviceName, ref ie_core_versions_t versions);
 
         [DllImport(Library)]
-        public static extern void ie_core_versions_free(ref ie_core_versions_t versions);
+        internal static extern void ie_core_versions_free(ref ie_core_versions_t versions);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_read_network(ie_core_t core, string xml_file, string? weights_file, out ie_network_t network);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_read_network(ie_core_t core, string xml_file, string? weights_file, out ie_network_t network);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_read_network_from_memory(ie_core_t core, string xml_content, size_t xml_content_size, in ie_blob_t weight_blob, out ie_network_t network);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_read_network_from_memory(ie_core_t core, string xml_content, size_t xml_content_size, in ie_blob_t weight_blob, out ie_network_t network);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_load_network(ie_core_t core, ie_network_t network, string device_name, in ie_config_t config, out ie_executable_network_t exe_network);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_load_network(ie_core_t core, ie_network_t network, string device_name, in ie_config_t config, out ie_executable_network_t exe_network);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_set_config(ie_core_t core, in ie_config_t ie_core_config, string device_name);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_set_config(ie_core_t core, in ie_config_t ie_core_config, string device_name);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_register_plugin(ie_core_t core, string plugin_name, string device_name);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_register_plugin(ie_core_t core, string plugin_name, string device_name);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_register_plugins(ie_core_t core, string xml_config_file);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_register_plugins(ie_core_t core, string xml_config_file);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_unregister_plugin(ie_core_t core, string device_name);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_unregister_plugin(ie_core_t core, string device_name);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_add_extension(ie_core_t core, string extension_path, string device_name);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_add_extension(ie_core_t core, string extension_path, string device_name);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_get_metric(ie_core_t core, string device_name, string metric_name, ref ie_param_t param_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_get_metric(ie_core_t core, string device_name, string metric_name, ref ie_param_t param_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_core_get_config(ie_core_t core, string device_name, string config_name, ref ie_param_t param_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_core_get_config(ie_core_t core, string device_name, string config_name, ref ie_param_t param_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_core_get_available_devices(ie_core_t core, ref ie_available_devices_t available_devices);
+        internal static extern IEStatusCode ie_core_get_available_devices(ie_core_t core, ref ie_available_devices_t available_devices);
 
         [DllImport(Library)]
-        public static extern void ie_core_available_devices_free(ref ie_available_devices_t available_devices);
+        internal static extern void ie_core_available_devices_free(ref ie_available_devices_t available_devices);
 
         [DllImport(Library)]
-        public static extern void ie_exec_network_free(ref ie_executable_network_t ie_exec_network);
+        internal static extern void ie_exec_network_free(ref ie_executable_network_t ie_exec_network);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t ie_exec_network, out ie_infer_request_t request);
+        internal static extern IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t ie_exec_network, out ie_infer_request_t request);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_exec_network_get_metric(ie_executable_network_t ie_exec_network, string metric_name, ref ie_param_t param_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_exec_network_get_metric(ie_executable_network_t ie_exec_network, string metric_name, ref ie_param_t param_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_exec_network_set_config(ie_executable_network_t ie_exec_network, in ie_config_t param_config);
+        internal static extern IEStatusCode ie_exec_network_set_config(ie_executable_network_t ie_exec_network, in ie_config_t param_config);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_exec_network_get_config(ie_executable_network_t ie_exec_network, string metric_config, ref ie_param_t param_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_exec_network_get_config(ie_executable_network_t ie_exec_network, string metric_config, ref ie_param_t param_result);
 
         [DllImport(Library)]
-        public static extern void ie_infer_request_free(ref ie_infer_request_t infer_request);
+        internal static extern void ie_infer_request_free(ref ie_infer_request_t infer_request);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_infer_request_get_blob(ie_infer_request_t infer_request, string name, out ie_blob_t blob);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_infer_request_get_blob(ie_infer_request_t infer_request, string name, out ie_blob_t blob);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_infer_request_set_blob(ie_infer_request_t infer_request, string name, ie_blob_t blob);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_infer_request_set_blob(ie_infer_request_t infer_request, string name, ie_blob_t blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_infer_request_infer(ie_infer_request_t infer_request);
+        internal static extern IEStatusCode ie_infer_request_infer(ie_infer_request_t infer_request);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_infer_request_infer_async(ie_infer_request_t infer_request);
+        internal static extern IEStatusCode ie_infer_request_infer_async(ie_infer_request_t infer_request);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t infer_request, in ie_complete_call_back_t callback);
+        //internal static extern IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t infer_request, in ie_complete_call_back_t callback);
+        internal static extern IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t infer_request, IntPtr callback);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_infer_request_wait(ie_infer_request_t infer_request, int64_t timeout);
+        internal static extern IEStatusCode ie_infer_request_wait(ie_infer_request_t infer_request, int64_t timeout);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_infer_request_set_batch(ie_infer_request_t infer_request, size_t size);
+        internal static extern IEStatusCode ie_infer_request_set_batch(ie_infer_request_t infer_request, size_t size);
 
         [DllImport(Library)]
-        public static extern void ie_network_free(ref ie_network_t network);
+        internal static extern void ie_network_free(ref ie_network_t network);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_name(ie_network_t network, out IntPtr name);
+        internal static extern IEStatusCode ie_network_get_name(ie_network_t network, out IntPtr name);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_inputs_number(ie_network_t network, ref size_t size_result);
+        internal static extern IEStatusCode ie_network_get_inputs_number(ie_network_t network, ref size_t size_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_input_name(ie_network_t network, size_t number, out IntPtr name);
+        internal static extern IEStatusCode ie_network_get_input_name(ie_network_t network, size_t number, out IntPtr name);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_input_precision(ie_network_t network, string input_name, ref precision_e prec_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_input_precision(ie_network_t network, string input_name, ref precision_e prec_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_set_input_precision(ie_network_t network, string input_name, precision_e p);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_set_input_precision(ie_network_t network, string input_name, precision_e p);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_input_layout(ie_network_t network, string input_name, ref layout_e layout_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_input_layout(ie_network_t network, string input_name, ref layout_e layout_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_set_input_layout(ie_network_t network, string input_name, layout_e l);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_set_input_layout(ie_network_t network, string input_name, layout_e l);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_input_dims(ie_network_t network, string input_name, ref dimensions_t dims_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_input_dims(ie_network_t network, string input_name, ref dimensions_t dims_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_input_resize_algorithm(ie_network_t network, string input_name, ref resize_alg_e resize_alg_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_input_resize_algorithm(ie_network_t network, string input_name, ref resize_alg_e resize_alg_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t network, string input_name, resize_alg_e resize_algo);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t network, string input_name, resize_alg_e resize_algo);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_color_format(ie_network_t network, string input_name, ref colorformat_e colformat_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_color_format(ie_network_t network, string input_name, ref colorformat_e colformat_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_set_color_format(ie_network_t network, string input_name, colorformat_e color_format);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_set_color_format(ie_network_t network, string input_name, colorformat_e color_format);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_input_shapes(ie_network_t network, ref input_shapes_t shapes);
+        internal static extern IEStatusCode ie_network_get_input_shapes(ie_network_t network, ref input_shapes_t shapes);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_network_reshape(ie_network_t network, input_shapes_t shapes);
+        internal static extern IEStatusCode ie_network_reshape(ie_network_t network, input_shapes_t shapes);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_outputs_number(ie_network_t network, ref size_t size_result);
+        internal static extern IEStatusCode ie_network_get_outputs_number(ie_network_t network, ref size_t size_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_output_name(ie_network_t network, size_t number, out IntPtr name);
+        internal static extern IEStatusCode ie_network_get_output_name(ie_network_t network, size_t number, out IntPtr name);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_output_precision(ie_network_t network, string output_name, ref precision_e prec_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_output_precision(ie_network_t network, string output_name, ref precision_e prec_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_set_output_precision(ie_network_t network, string output_name, precision_e p);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_set_output_precision(ie_network_t network, string output_name, precision_e p);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_output_layout(ie_network_t network, string output_name, ref layout_e layout_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_output_layout(ie_network_t network, string output_name, ref layout_e layout_result);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_set_output_layout(ie_network_t network, string output_name, layout_e l);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_set_output_layout(ie_network_t network, string output_name, layout_e l);
 
-        [DllImport(Library)]
-        public static extern IEStatusCode ie_network_get_output_dims(ie_network_t network, string output_name, ref dimensions_t dims_result);
+        [DllImport(Library, CharSet = CharSet.Ansi)]
+        internal static extern IEStatusCode ie_network_get_output_dims(ie_network_t network, string output_name, ref dimensions_t dims_result);
+#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
 
         [DllImport(Library)]
-        public static extern void ie_network_input_shapes_free(ref input_shapes_t inputShapes);
+        internal static extern void ie_network_input_shapes_free(ref input_shapes_t inputShapes);
 
         [DllImport(Library)]
-        public static extern void ie_network_name_free(ref IntPtr name);
+        internal static extern void ie_network_name_free(ref IntPtr name);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_make_memory(in tensor_desc_t tensorDesc, out ie_blob_t blob);
+        internal static extern IEStatusCode ie_blob_make_memory(in tensor_desc_t tensorDesc, out ie_blob_t blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_make_memory_from_preallocated(in tensor_desc_t tensorDesc, in byte data, size_t size, out ie_blob_t blob);
+        internal static extern IEStatusCode ie_blob_make_memory_from_preallocated(in tensor_desc_t tensorDesc, in byte data, size_t size, out ie_blob_t blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_make_memory_with_roi(ie_blob_t inputBlob, in roi_t roi, out ie_blob_t blob);
+        internal static extern IEStatusCode ie_blob_make_memory_with_roi(ie_blob_t inputBlob, in roi_t roi, out ie_blob_t blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_make_memory_nv12(ie_blob_t y, ie_blob_t uv, out ie_blob_t nv12blob);
+        internal static extern IEStatusCode ie_blob_make_memory_nv12(ie_blob_t y, ie_blob_t uv, out ie_blob_t nv12blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_make_memory_i420(ie_blob_t y, ie_blob_t u, ie_blob_t v, out ie_blob_t i420blob);
+        internal static extern IEStatusCode ie_blob_make_memory_i420(ie_blob_t y, ie_blob_t u, ie_blob_t v, out ie_blob_t i420blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_size(ie_blob_t blob, out int size_result);
+        internal static extern IEStatusCode ie_blob_size(ie_blob_t blob, out int size_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_byte_size(ie_blob_t blob, out int bsize_result);
+        internal static extern IEStatusCode ie_blob_byte_size(ie_blob_t blob, out int bsize_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_deallocate(ref ie_blob_t blob);
+        internal static extern IEStatusCode ie_blob_deallocate(ref ie_blob_t blob);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_get_buffer(ie_blob_t blob, ref ie_blob_buffer_t blob_buffer);
+        internal static extern IEStatusCode ie_blob_get_buffer(ie_blob_t blob, ref ie_blob_buffer_t blob_buffer);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_get_cbuffer(ie_blob_t blob, ref ie_blob_buffer_t blob_cbuffer);
+        internal static extern IEStatusCode ie_blob_get_cbuffer(ie_blob_t blob, ref ie_blob_buffer_t blob_cbuffer);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_get_dims(ie_blob_t blob, ref dimensions_t dims_result);
+        internal static extern IEStatusCode ie_blob_get_dims(ie_blob_t blob, ref dimensions_t dims_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_get_layout(ie_blob_t blob, out layout_e layout_result);
+        internal static extern IEStatusCode ie_blob_get_layout(ie_blob_t blob, out layout_e layout_result);
 
         [DllImport(Library)]
-        public static extern IEStatusCode ie_blob_get_precision(ie_blob_t blob, out precision_e prec_result);
+        internal static extern IEStatusCode ie_blob_get_precision(ie_blob_t blob, out precision_e prec_result);
 
         [DllImport(Library)]
-        public static extern void ie_blob_free(ref ie_blob_t blob);
+        internal static extern void ie_blob_free(ref ie_blob_t blob);
 
         public static string GetApiVersion()
         {

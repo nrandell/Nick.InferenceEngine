@@ -2,6 +2,7 @@
 using System;
 
 using Nick.FFMpeg.Net;
+using Nick.InferenceEngine.Net;
 
 namespace MultiVideoDetection
 {
@@ -21,5 +22,7 @@ namespace MultiVideoDetection
         public RawFrame Frame { get; }
         public FrameDecoder Decoder { get; }
         public IntPtr Buffer { get; }
+
+        public InferenceEngineRequest? ActiveRequest { get; set; }
     }
 }

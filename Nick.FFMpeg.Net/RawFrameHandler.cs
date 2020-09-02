@@ -16,19 +16,20 @@ namespace Nick.FFMpeg.Net
 
         private readonly RawFrame _frame;
         private readonly int _id;
-
+        private readonly bool _log;
         private int _state = _Consumed;
         private readonly object? _lock;
         public bool IsFinished => _state == _Finished;
 
-        public RawFrameHandler(int id, bool blocking) : this(new RawFrame(), id, blocking)
+        public RawFrameHandler(int id, bool blocking, bool log = false) : this(new RawFrame(), id, blocking, log)
         {
         }
 
-        public RawFrameHandler(RawFrame frame, int id, bool blocking)
+        public RawFrameHandler(RawFrame frame, int id, bool blocking, bool log = false)
         {
             _frame = frame;
             _id = id;
+            _log = log;
             if (blocking)
             {
                 _lock = new object();
@@ -143,7 +144,10 @@ namespace Nick.FFMpeg.Net
 
         private void Log(string msg)
         {
-            Console.WriteLine(FormattableString.Invariant($"{_id}: {msg}"));
+            if (_log)
+            {
+                Console.WriteLine(FormattableString.Invariant($"{_id}: {msg}"));
+            }
         }
     }
 }

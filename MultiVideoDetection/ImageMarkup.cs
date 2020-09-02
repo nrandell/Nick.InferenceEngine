@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -24,14 +25,14 @@ namespace MultiVideoDetection
             public int Value { get; set; }
         }
 
-        private readonly Dictionary<int, IntRef> _imageIds = new Dictionary<int, IntRef>();
+        private readonly ConcurrentDictionary<int, IntRef> _imageIds = new ConcurrentDictionary<int, IntRef>();
 
         private int GetImageId(int frameIndex)
         {
             if (!_imageIds.TryGetValue(frameIndex, out var idRef))
             {
                 idRef = new IntRef();
-                _imageIds.Add(frameIndex, idRef);
+                _imageIds.TryAdd(frameIndex, idRef);
             }
             var nextId = idRef.Value;
             idRef.Value = (idRef.Value + 1) % maxImages;
@@ -61,10 +62,11 @@ namespace MultiVideoDetection
             }
 
             var imageId = GetImageId(frameIndex);
-            var fileName = Path.Combine(OutputDirectory, FormattableString.Invariant($"{frameIndex:D4}-img-{imageId++:D4}.png"));
-            if (!Directory.Exists(OutputDirectory))
+            var fileName = Path.Combine(OutputDirectory, FormattableString.Invariant($"{frameIndex:D4}"), FormattableString.Invariant($"{imageId++:D4}.png"));
+            var directory = Path.GetDirectoryName(fileName);
+            if ((directory != null) && !Directory.Exists(directory))
             {
-                Directory.CreateDirectory(OutputDirectory);
+                Directory.CreateDirectory(directory);
             }
 
             using (var ms = new MemoryStream())
