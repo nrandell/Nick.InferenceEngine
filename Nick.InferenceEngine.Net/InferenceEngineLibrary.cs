@@ -1,4 +1,4 @@
-﻿#define DebugLibrary
+﻿//#define DebugLibrary
 
 using System;
 #if !DebugLibrary
@@ -250,6 +250,7 @@ namespace Nick.InferenceEngine.Net
         BIN = 71,   // 1bit integer value
         I64 = 72,   // 64bit signed integer value
         U64 = 73,   // 64bit unsigned integer value
+        U32 = 74,   // 32bit unsigned integer value
         CUSTOM = 80, // custom precision has it's own name and size of elements
         UNSPECIFIED = 255, //< Unspecified value. Used by default
     }
