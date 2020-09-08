@@ -83,7 +83,7 @@ let handlePixels width height layout (dimensions: dimensions_t) (pixelSpan: inre
 
     use outputBlob = request.GetBlob(mainOutputName)
     printfn "Output %d [%A %A] %A" outputBlob.Size outputBlob.Layout outputBlob.Precision outputBlob.Dimensions
-    let span = outputBlob.AsSpan<float32>();
+    let span = outputBlob.AsReadOnlySpan<float32>();
 
     let dims = outputBlob.Dimensions
     let maxProposalCount = int dims.[2]
@@ -234,7 +234,7 @@ let nv12FfmpegRunner() =
 
     use outputBlob = request.GetBlob(mainOutputName)
     printfn "Output %d [%A %A] %A" outputBlob.Size outputBlob.Layout outputBlob.Precision outputBlob.Dimensions
-    let span = outputBlob.AsSpan<float32>();
+    let span = outputBlob.AsReadOnlySpan<float32>();
 
     let dims = outputBlob.Dimensions
     let maxProposalCount = int dims.[2]
@@ -303,7 +303,7 @@ let i420FfmpegRunner() =
 
     use outputBlob = request.GetBlob(mainOutputName)
     printfn "Output %d [%A %A] %A" outputBlob.Size outputBlob.Layout outputBlob.Precision outputBlob.Dimensions
-    let span = outputBlob.AsSpan<float32>();
+    let span = outputBlob.AsReadOnlySpan<float32>();
 
     let dims = outputBlob.Dimensions
     let maxProposalCount = int dims.[2]
