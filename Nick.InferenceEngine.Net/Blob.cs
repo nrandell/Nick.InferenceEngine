@@ -1,8 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
-
-using Microsoft.Win32.SafeHandles;
+using System.Threading.Tasks;
 
 using Nick.Inference;
 
@@ -14,6 +14,32 @@ namespace Nick.InferenceEngine.Net
 
     public class Blob : IDisposable
     {
+        public static async Task<Blob> LoadBlobFromFileAsync(FileInfo file, CancellationToken ct)
+        {
+            var size = file.Length;
+            var description = new tensor_desc_t(layout_e.ANY, new dimensions_t(size), precision_e.U8);
+            var blob = new Blob(description);
+            var memory = blob.AsMemory<byte>();
+            using var fs = file.OpenRead();
+            var amountRead = 0;
+            var start = memory;
+            while (amountRead < size)
+            {
+                var amount = await fs.ReadAsync(start, ct).ConfigureAwait(false);
+                if (amount < 0)
+                {
+                    throw new EndOfStreamException();
+                }
+                if (amount == 0)
+                {
+                    break;
+                }
+                amountRead += amount;
+                start = start[amount..];
+            }
+            return blob;
+        }
+
         private ie_blob_t _blob;
         internal ie_blob_t NativeBlob => _blob;
         private bool disposedValue;
@@ -78,13 +104,22 @@ namespace Nick.InferenceEngine.Net
             return new Blob(this, roi);
         }
 
-        public unsafe ReadOnlySpan<T> AsSpan<T>() where T : unmanaged
+        public unsafe ReadOnlySpan<T> AsReadOnlySpan<T>() where T : unmanaged
         {
             var size = Size;
             var buffer = new ie_blob_buffer_t();
 
             ie_blob_get_cbuffer(_blob, ref buffer).Check(nameof(ie_blob_get_cbuffer));
             return new ReadOnlySpan<T>(buffer.cbuffer, Size);
+        }
+
+        public unsafe Span<T> AsSpan<T>() where T : unmanaged
+        {
+            var size = Size;
+            var buffer = new ie_blob_buffer_t();
+
+            ie_blob_get_cbuffer(_blob, ref buffer).Check(nameof(ie_blob_get_cbuffer));
+            return new Span<T>(buffer.buffer, Size);
         }
 
         public int Size

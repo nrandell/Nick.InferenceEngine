@@ -30,7 +30,9 @@ namespace MultiVideoDetection
                 using var cts = new CancellationTokenSource();
                 var ct = cts.Token;
 
-                using var detector = new Detector(@"C:\Users\nickr\Documents\Intel\OpenVINO\openvino_models\intel\person-vehicle-bike-detection-crossroad-1016\FP16\person-vehicle-bike-detection-crossroad-1016.xml");
+                using var detector = await Detector.LoadAsync(@"C:\Users\nickr\Documents\Intel\OpenVINO\openvino_models\intel\person-vehicle-bike-detection-crossroad-1016\FP16\person-vehicle-bike-detection-crossroad-1016.xml", ct);
+
+                //using var detector = new Detector(@"C:\Users\nickr\Documents\Intel\OpenVINO\openvino_models\intel\person-vehicle-bike-detection-crossroad-1016\FP16\person-vehicle-bike-detection-crossroad-1016.xml");
                 //using var detector = new Detector(@"C:\Users\nickr\Documents\Intel\OpenVINO\openvino_models\intel\face-detection-0104\FP16\face-detection-0104.xml");
                 //using var detector = new Detector(@"C:\Users\nickr\Documents\Intel\OpenVINO\openvino_models\intel\face-detection-0104\FP32\face-detection-0104.xml");
                 DumpCoreInformation(detector.Core);

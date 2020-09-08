@@ -71,7 +71,7 @@ namespace MultiVideoDetection
 
         public IReadOnlyCollection<BoundingBox> ProcessOutput(Blob outputBlob)
         {
-            var span = outputBlob.AsSpan<float>();
+            var span = outputBlob.AsReadOnlySpan<float>();
             var dims = outputBlob.Dimensions;
             var maxProposalCount = (int)dims[2];
             var objectSize = (int)dims[3];

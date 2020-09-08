@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Nick.InferenceEngine.Net
 {
@@ -11,16 +13,41 @@ namespace Nick.InferenceEngine.Net
 
     public partial class InferenceEngineNetwork : IDisposable
     {
+        public static async Task<InferenceEngineNetwork> LoadAsync(InferenceEngineCore core, string xmlFileName, string? weightsFileName = null, CancellationToken ct = default)
+        {
+            var xmlFile = new FileInfo(xmlFileName);
+            var xmlContents = new byte[xmlFile.Length];
+            using var ms = new MemoryStream(xmlContents);
+            using (var fs = xmlFile.OpenRead())
+            {
+                await fs.CopyToAsync(ms, ct).ConfigureAwait(false);
+            }
+
+            var weightsFile = new FileInfo(weightsFileName ?? Path.ChangeExtension(xmlFileName, ".bin"));
+            var weightsBlob = await Blob.LoadBlobFromFileAsync(weightsFile, ct).ConfigureAwait(false);
+            return new InferenceEngineNetwork(core, xmlContents, weightsBlob);
+        }
+
         private ie_network_t _network;
         internal ie_network_t Network => _network;
 
         internal readonly InferenceEngineCore _core;
+
+        private readonly Blob? _weightsBlob;
 
         public InferenceEngineNetwork(InferenceEngineCore core, string xmlFileName, string? weightsFileName = null)
         {
             _core = core;
             var binFileName = weightsFileName ?? Path.ChangeExtension(xmlFileName, ".bin");
             ie_core_read_network(core.Core, xmlFileName, binFileName, out _network).Check(nameof(ie_core_read_network));
+        }
+
+        public InferenceEngineNetwork(InferenceEngineCore core, byte[] xmlContent, Blob weights)
+        {
+            _core = core;
+            var span = new Span<byte>(xmlContent);
+            ie_core_read_network_from_memory(core.Core, MemoryMarshal.GetReference(span), span.Length, weights.NativeBlob, out _network).Check(nameof(ie_core_read_network_from_memory));
+            _weightsBlob = weights;
         }
 
         public string NetworkName
@@ -235,6 +262,7 @@ namespace Nick.InferenceEngine.Net
         {
             if (!disposedValue)
             {
+                _weightsBlob?.Dispose();
                 ie_network_free(ref _network);
 
                 disposedValue = true;

@@ -7,6 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nick.InferenceEngine.Net", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D33E1647-DB71-427E-8186-748C909327E4}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		Directory.Build.props = Directory.Build.props
 		global.json = global.json
 		version.json = version.json
@@ -31,7 +32,7 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "VideoDetectionFSharp", "Vid
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VideoDetection", "VideoDetection\VideoDetection.csproj", "{DC8318ED-8472-40AA-8698-BA97376FC0FB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiVideoDetection", "MultiVideoDetection\MultiVideoDetection.csproj", "{4AF0B7CA-B095-4F33-859F-F4B79B97DDC3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultiVideoDetection", "MultiVideoDetection\MultiVideoDetection.csproj", "{4AF0B7CA-B095-4F33-859F-F4B79B97DDC3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

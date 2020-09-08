@@ -1,7 +1,10 @@
 ﻿using System;
+
+#if NET5_0
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+#endif
 
 namespace Nick.InferenceEngine.Net
 {
@@ -13,6 +16,8 @@ namespace Nick.InferenceEngine.Net
     {
         private readonly InferenceEngineExecutableNetwork _executableNetwork;
         private ie_infer_request_t _inferRequest;
+
+#if NET5_0
         private readonly Object _padlock = new object();
         private bool _active;
         private IntPtr _cbArray;
@@ -44,17 +49,35 @@ namespace Nick.InferenceEngine.Net
             }
         }
 
+        private void InstanceCompleteCallBack()
+        {
+            var padlock = _padlock;
+            lock (padlock)
+            {
+                if (!_active)
+                {
+                    Console.WriteLine("Completed when not active");
+                }
+                _active = false;
+                Monitor.PulseAll(padlock);
+            }
+        }
+
+#endif
+
         public unsafe InferenceEngineRequest(InferenceEngineExecutableNetwork executableNetwork)
         {
             _executableNetwork = executableNetwork;
             ie_exec_network_create_infer_request(executableNetwork.ExecutableNetwork, out _inferRequest).Check(nameof(ie_exec_network_create_infer_request));
 
+#if NET5_0
             _handle = GCHandle.Alloc(this);
             var cbArray = Marshal.AllocHGlobal(sizeof(IntPtr) * 2);
             var span = new Span<IntPtr>((void*)cbArray, 2);
             span[0] = (IntPtr)(delegate*<IntPtr, void>)&CompleteCallBack;
             span[1] = GCHandle.ToIntPtr(_handle);
             _cbArray = cbArray;
+#endif
         }
 
         public void SetBlob(string name, Blob blob)
@@ -73,20 +96,7 @@ namespace Nick.InferenceEngine.Net
             ie_infer_request_infer(_inferRequest).Check(nameof(ie_infer_request_infer));
         }
 
-        private void InstanceCompleteCallBack()
-        {
-            var padlock = _padlock;
-            lock (padlock)
-            {
-                if (!_active)
-                {
-                    Console.WriteLine("Completed when not active");
-                }
-                _active = false;
-                Monitor.PulseAll(padlock);
-            }
-        }
-
+#if NET5_0
         public void StartInfer()
         {
             var padlock = _padlock;
@@ -110,6 +120,7 @@ namespace Nick.InferenceEngine.Net
                 InstanceCompleteCallBack();
             }
         }
+#endif
 
         #region IDisposable Support
         private bool disposedValue; // To detect redundant calls
@@ -118,13 +129,16 @@ namespace Nick.InferenceEngine.Net
         {
             if (!disposedValue)
             {
+#if NET5_0
                 if (_active)
                 {
                     Console.WriteLine("Still active");
                 }
+
                 _handle.Free();
                 Marshal.FreeHGlobal(_cbArray);
                 _cbArray = IntPtr.Zero;
+#endif
                 ie_infer_request_free(ref _inferRequest);
 
                 disposedValue = true;

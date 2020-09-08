@@ -14,6 +14,26 @@ namespace MultiVideoDetection
 {
     public class Detector : IDisposable
     {
+        public static async Task<Detector> LoadAsync(string networkName, CancellationToken ct)
+        {
+            var core = new InferenceEngineCore();
+            try
+            {
+                return await LoadAsync(core, networkName, ct);
+            }
+            catch (Exception)
+            {
+                core.Dispose();
+                throw;
+            }
+        }
+
+        public static async Task<Detector> LoadAsync(InferenceEngineCore core, string networkName, CancellationToken ct)
+        {
+            var network = await InferenceEngineNetwork.LoadAsync(core, networkName, ct: ct);
+            return new Detector(core, network);
+        }
+
         private bool disposedValue;
         private InferenceEngineExecutableNetwork? _executableNetwork;
         private readonly InferenceEngineNetwork _network;
@@ -38,25 +58,21 @@ namespace MultiVideoDetection
         }
 
         public InferenceEngineCore Core { get; }
-        public Detector(string networkName)
+
+        public Detector(string networkName) : this(new InferenceEngineCore(), networkName) { }
+
+        public Detector(InferenceEngineCore core, string networkName) : this(core, new InferenceEngineNetwork(core, networkName)) { }
+
+        public Detector(InferenceEngineCore core, InferenceEngineNetwork network)
         {
-            var core = new InferenceEngineCore();
-            try
-            {
-                var network = _network = new InferenceEngineNetwork(core, networkName);
-                var mainInputName = network.GetInputName(0);
-                var inputDimensions = network.GetInputDimensions(mainInputName);
-                C = (int)inputDimensions[1];
-                H = (int)inputDimensions[2];
-                W = (int)inputDimensions[3];
-                FrameSize = C * H * W;
-                Core = core;
-            }
-            catch (Exception)
-            {
-                core.Dispose();
-                throw;
-            }
+            Core = core;
+            _network = network;
+            var mainInputName = network.GetInputName(0);
+            var inputDimensions = network.GetInputDimensions(mainInputName);
+            C = (int)inputDimensions[1];
+            H = (int)inputDimensions[2];
+            W = (int)inputDimensions[3];
+            FrameSize = C * H * W;
         }
 
         private unsafe Blob ConvertAndInitialise(IntPtr memory, State state)
@@ -100,98 +116,6 @@ namespace MultiVideoDetection
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in process async: {ex}");
-            }
-        }
-
-#pragma warning disable MA0051 // Method is too long
-        public async Task OldProcessAsync(RawFrameHandler[] handlers, CancellationToken ct)
-#pragma warning restore MA0051 // Method is too long
-        {
-            var executableNetwork = _executableNetwork ?? throw new InvalidOperationException("Detector needs to be initialised");
-            var max = executableNetwork.OptimalNumberOfInferRequests;
-
-            var channel = Channel.CreateBounded<ResultInfo>(new BoundedChannelOptions(handlers.Length) { AllowSynchronousContinuations = false, SingleReader = true, SingleWriter = true });
-
-            var taskQueue = new List<Task>(max);
-
-            var states = new State?[handlers.Length];
-
-            try
-            {
-                while (!ct.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var available = false;
-                        var handled = 0;
-
-                        for (var i = 0; i < handlers.Length; i++)
-                        {
-                            if (taskQueue.Count == taskQueue.Capacity)
-                            {
-                                var task = await Task.WhenAny(taskQueue);
-                                taskQueue.Remove(task);
-                            }
-
-                            var handler = handlers[i];
-                            if (handler.TryConsume(i, out var frame))
-                            {
-                                available = true;
-                                var state = states[i];
-                                if (state == null)
-                                {
-                                    var decoder = new FrameDecoder(frame, W, H, FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_BGR24, FrameSize);
-                                    var memory = Marshal.AllocHGlobal(FrameSize);
-                                    state = new State(i, handler, frame, decoder, memory);
-                                    states[i] = state;
-                                }
-                                taskQueue.Add(Handle(state, ct));
-                                handled++;
-                            }
-                            else
-                            {
-                                available = available || !handler.IsFinished;
-                            }
-                        }
-
-                        if (!available)
-                        {
-                            if (taskQueue.Count > 0)
-                            {
-                                await Task.WhenAll(taskQueue);
-                            }
-                            return;
-                        }
-
-                        if (handled == 0)
-                        {
-                            if (taskQueue.Count > 0)
-                            {
-                                var task = await Task.WhenAny(taskQueue);
-                                taskQueue.Remove(task);
-                            }
-                            else
-                            {
-                                await Task.Delay(100, ct);
-                            }
-                        }
-
-                    }
-                    catch (Exception ex) when (!ct.IsCancellationRequested)
-                    {
-                        Console.WriteLine($"Error processing: {ex}");
-                    }
-                }
-            }
-            finally
-            {
-                foreach (var state in states)
-                {
-                    if (state != null)
-                    {
-                        Marshal.FreeHGlobal(state.Buffer);
-                    }
-                }
             }
         }
 
@@ -272,7 +196,6 @@ namespace MultiVideoDetection
                 }
 
                 Console.WriteLine("Detection thread finishing");
-
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
@@ -287,9 +210,7 @@ namespace MultiVideoDetection
                         Marshal.FreeHGlobal(state.Buffer);
                     }
                 }
-
             }
-
         }
 
         private void FinishNextRequest(ChannelWriter<ResultInfo> writer, Queue<State> requests)
@@ -318,29 +239,6 @@ namespace MultiVideoDetection
                         await MarkupImage(state.Index, state.Frame, group, ct);
                     }
                 }
-
-            }
-            finally
-            {
-                state.RawFrameHandler.Consumed(state.Index, state.Frame);
-            }
-        }
-
-        private async Task Handle(State state, CancellationToken ct)
-        {
-            try
-            {
-                await Task.Delay(0, ct);
-                //var boundingBoxes = await ProcessFrame(state);
-                //var filteredBoxes = boundingBoxes.Where(b => (b.Confidence > 0.6)).GroupBy(b => b.ImageId).ToList();
-                //if (filteredBoxes.Count > 0)
-                //{
-                //    foreach (var group in filteredBoxes)
-                //    {
-                //        var id = group.Key;
-                //        await MarkupImage(state.Index, state.Frame, group, ct);
-                //    }
-                //}
             }
             finally
             {
@@ -358,7 +256,6 @@ namespace MultiVideoDetection
 
             var network = _network;
             var mainInputName = network.GetInputName(0);
-            var mainOutputName = network.GetOutputName(0);
             var request = new InferenceEngineRequest(executableNetwork);
             using var blob = ConvertAndInitialise(state.Buffer, state);
             request.SetBlob(mainInputName, blob);
@@ -383,7 +280,7 @@ namespace MultiVideoDetection
             return boxes;
         }
 
-        private unsafe Bitmap GetBitmap(DecodedFrame frame)
+        private unsafe static Bitmap GetBitmap(DecodedFrame frame)
         {
             var ptr = new IntPtr(frame.Buffer);
             return new Bitmap(frame.Width, frame.Height, 3 * frame.Width, System.Drawing.Imaging.PixelFormat.Format24bppRgb, ptr);
