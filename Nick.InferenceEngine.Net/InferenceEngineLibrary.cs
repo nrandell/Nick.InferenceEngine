@@ -3,6 +3,7 @@
 using System;
 #if !DebugLibrary
 using System.IO;
+using System.Reflection;
 #endif
 
 using System.Runtime.InteropServices;
@@ -343,13 +344,15 @@ namespace Nick.InferenceEngine.Net
             AddDllDirectory(@"C:\Users\nickr\Source\Code\openvino\inference-engine\temp\tbb\bin");
             AddDllDirectory(@"C:\Users\nickr\Source\Code\openvino\inference-engine\temp\gna_02.00.00.1047\win64\x64");
 #else
-            const string installDirectory = @"C:\Program Files (x86)\IntelSWTools\openvino";
-            const string baseDirectory = installDirectory;
+            //const string installDirectory = @"C:\Program Files (x86)\IntelSWTools\openvino";
+            //const string baseDirectory = installDirectory;
+            var baseDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetCallingAssembly().Location)!, "redist");
             AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\bin\intel64\Release"));
 
-            AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\ngraph\lib"));
-            AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\inference_engine\external\tbb\bin"));
-            AddDllDirectory(Path.Combine(baseDirectory, @"deployment_tools\inference_engine\external\hddl\bin"));
+            AddDllDirectory(Path.Combine(baseDirectory, @"ngraph\lib"));
+            AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\external\tbb\bin"));
+            AddDllDirectory(Path.Combine(baseDirectory, @"inference_engine\external\hddl\bin"));
+            AddDllDirectory(Path.Combine(baseDirectory, @"intel64_win\compiler"));
 #endif
         }
 
