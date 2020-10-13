@@ -81,7 +81,7 @@ namespace Nick.FFMpeg.Net
 
             AVPixelFormat sourceFormat;
 #if DISABLE_HARDWARE_DECODING
-            sourceFormat = video->codec->pix_fmt;
+            sourceFormat = (AVPixelFormat)video->codecpar->format;
 #else
 
             if (hardwareState != null)
@@ -97,7 +97,7 @@ namespace Nick.FFMpeg.Net
 #endif
 
             ffmpeg.avcodec_open2(decoderContext, decoder, options: null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
-            var converterContext = ffmpeg.sws_getContext(video->codec->width, video->codec->height, sourceFormat,
+            var converterContext = ffmpeg.sws_getContext(video->codecpar->width, video->codecpar->height, sourceFormat,
                 _targetWidth, _targetHeight, _targetPixelFormat,
                 ffmpeg.SWS_FAST_BILINEAR, srcFilter: null, dstFilter: null, param: null);
 

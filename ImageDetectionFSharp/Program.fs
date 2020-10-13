@@ -168,11 +168,10 @@ let openCVRunner() =
 
 
 let ffmpegRunner() =
-    let decoder = new ImageDecode()
     let width = 3264
     let height = 2448
     use rawFrame = new RawFrame()
-    decoder.DecodeRaw(imageName, rawFrame)
+    ImageDecode.DecodeRaw(imageName, rawFrame)
     //let struct (destData, _destLineSize) = decoder.DecodeFile(imageName, width, height)
     let size = 3 * width * height
     let frame = NativePtr.get rawFrame.Frame 0
@@ -191,9 +190,7 @@ let nv12FfmpegRunner() =
         let span = Span<byte>(data |> NativePtr.toVoidPtr, channels * height * width)
         new Blob(&tensor, span)
 
-    let decoder = new ImageDecode()
-
-    use frame = decoder.Decode(imageName,FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_NV12)
+    use frame = ImageDecode.Decode(imageName,FFmpeg.AutoGen.AVPixelFormat.AV_PIX_FMT_NV12)
     let inputWidth = frame.Width
     let inputHeight = frame.Height
     let format = frame.Format
@@ -255,10 +252,8 @@ let i420FfmpegRunner() =
         let roi = new roi_t(1, 0, 0, width, height)
         new Blob(basicBlob, &roi)
 
-    let decoder = new ImageDecode()
-
     use rawFrame = new RawFrame()
-    decoder.DecodeRaw(imageName, rawFrame)
+    ImageDecode.DecodeRaw(imageName, rawFrame)
     let frame = NativePtr.get rawFrame.Frame 0
     let inputWidth = rawFrame.Width
     let inputHeight = rawFrame.Height

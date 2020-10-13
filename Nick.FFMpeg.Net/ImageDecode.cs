@@ -4,11 +4,11 @@ using System;
 using FFmpeg.AutoGen;
 namespace Nick.FFMpeg.Net
 {
-    public unsafe class ImageDecode
+    public static unsafe class ImageDecode
     {
         static ImageDecode() => Helper.Initialise();
 
-        public void DecodeRaw(string file, RawFrame rawFrame)
+        public static void DecodeRaw(string file, RawFrame rawFrame)
         {
             AVFormatContext* inputContext = null;
             ffmpeg.avformat_open_input(&inputContext, file, fmt: null, options: null).ThrowExceptionIfError(nameof(ffmpeg.avformat_open_input));
@@ -27,10 +27,6 @@ namespace Nick.FFMpeg.Net
                     ffmpeg.avcodec_parameters_to_context(decoderContext, video->codecpar).ThrowExceptionIfError(nameof(ffmpeg.avcodec_parameters_to_context));
 
                     ffmpeg.avcodec_open2(decoderContext, decoder, options: null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
-
-                    var width = video->codec->width;
-                    var height = video->codec->height;
-                    var format = video->codec->pix_fmt;
 
                     var packet = ffmpeg.av_packet_alloc();
                     try
@@ -62,7 +58,7 @@ namespace Nick.FFMpeg.Net
             }
         }
 
-        public DecodedFrame Decode(string file, AVPixelFormat targetFormat)
+        public static DecodedFrame Decode(string file, AVPixelFormat targetFormat)
         {
             AVFormatContext* inputContext = null;
             ffmpeg.avformat_open_input(&inputContext, file, fmt: null, options: null).ThrowExceptionIfError(nameof(ffmpeg.avformat_open_input));
@@ -82,9 +78,9 @@ namespace Nick.FFMpeg.Net
 
                     ffmpeg.avcodec_open2(decoderContext, decoder, options: null).ThrowExceptionIfError(nameof(ffmpeg.avcodec_open2));
 
-                    var width = video->codec->width;
-                    var height = video->codec->height;
-                    var sourceFormat = video->codec->pix_fmt;
+                    var width = video->codecpar->width;
+                    var height = video->codecpar->height;
+                    var sourceFormat = (AVPixelFormat)video->codecpar->format;
                     var converterContext = ffmpeg.sws_getContext(width, height, sourceFormat, width, height, targetFormat, ffmpeg.SWS_FAST_BILINEAR, srcFilter: null, dstFilter: null, param: null);
                     try
                     {
