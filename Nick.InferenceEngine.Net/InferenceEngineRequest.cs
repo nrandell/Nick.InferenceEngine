@@ -74,7 +74,9 @@ namespace Nick.InferenceEngine.Net
             _handle = GCHandle.Alloc(this);
             var cbArray = Marshal.AllocHGlobal(sizeof(IntPtr) * 2);
             var span = new Span<IntPtr>((void*)cbArray, 2);
-            span[0] = (IntPtr)(delegate*<IntPtr, void>)&CompleteCallBack;
+            delegate* unmanaged[Cdecl]<IntPtr, void> unmanagedPtr = &CompleteCallBack;
+
+            span[0] = (IntPtr)unmanagedPtr;
             span[1] = GCHandle.ToIntPtr(_handle);
             _cbArray = cbArray;
 #endif
