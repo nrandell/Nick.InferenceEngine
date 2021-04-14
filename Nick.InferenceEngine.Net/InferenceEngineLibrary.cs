@@ -326,7 +326,7 @@ namespace Nick.InferenceEngine.Net
             Environment.SetEnvironmentVariable("PATH", pathName + ";" + path);
         }
 
-        static InferenceEngineLibrary()
+        public static void Register(string baseDirectory)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -337,7 +337,6 @@ namespace Nick.InferenceEngine.Net
             AddDllDirectory(@"C:\Users\nickr\Source\Code\openvino\inference-engine\temp\tbb\bin");
             AddDllDirectory(@"C:\Users\nickr\Source\Code\openvino\inference-engine\temp\gna_02.00.00.1047\win64\x64");
 #else
-                const string baseDirectory = @"C:\Program Files (x86)\IntelSWTools\openvino_2021";
                 AddDllDirectory(Path.Combine(baseDirectory, "opencv", "bin"));
                 AddDllDirectory(Path.Combine(baseDirectory, "inference_engine", "bin", "intel64", "Release"));
                 AddDllDirectory(Path.Combine(baseDirectory, "deployment_tools", "ngraph", "lib"));
